@@ -31,7 +31,7 @@ SocketRooms.getAll = async function () {
 	};
 	const userRooms = {};
 	const topicData = {};
-	
+
 	function checkTid(key) {
 		const tid = key.match(/^topic_(\d+)/);
 		if (tid) {
