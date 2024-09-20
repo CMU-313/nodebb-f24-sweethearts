@@ -72,27 +72,40 @@ define('forum/account/settings', [
 	}
 
 	function saveSettings(settings) {
-		api.put(`/users/${ajaxify.data.uid}/settings`, { settings }).then((newSettings) => {
-			alerts.success('[[success:settings-saved]]');
-			let languageChanged = false;
-			for (const key in newSettings) {
-				if (newSettings.hasOwnProperty(key)) {
-					if (key === 'userLang' && config.userLang !== newSettings.userLang) {
-						languageChanged = true;
-					}
-					if (key === 'bootswatchSkin') {
-						savedSkin = newSettings.bootswatchSkin;
-						config.bootswatchSkin = savedSkin === 'noskin' ? '' : savedSkin;
-					} else if (config.hasOwnProperty(key)) {
-						config[key] = newSettings[key];
-					}
-				}
-			}
+		console.log('Logging Jullia Montejo');
+		api.put(`/users/${ajaxify.data.uid}/settings`, { settings }).then(handleNewSettings);
+	}
 
-			if (languageChanged && parseInt(app.user.uid, 10) === parseInt(ajaxify.data.theirid, 10)) {
-				window.location.reload();
+	// Alerts the user that the settings have been saved and updates the configuration.
+	function handleNewSettings(newSettings) {
+		alerts.success('[[success:settings-saved]]');
+		processNewSettings(newSettings);
+	}
+
+	// Processes the new settings and updates the configuration accordingly.
+	function processNewSettings(newSettings) {
+		for (const key in newSettings) {
+			if (newSettings.hasOwnProperty(key)) {
+				checkAndUpdateConfig(key, newSettings);
 			}
-		});
+		}
+	}
+
+	// Updates the configuration based on the provided key and new settings.
+	function checkAndUpdateConfig(key, newSettings) {
+		if (key === 'userLang' && config.userLang !== newSettings.userLang) {
+			window.location.reload();
+		} else if (key === 'bootswatchSkin') {
+			updateSkin(newSettings.bootswatchSkin);
+		} else if (config.hasOwnProperty(key)) {
+			config[key] = newSettings[key];
+		}
+	}
+
+	// Updates the saved skin with the new skin.
+	function updateSkin(skin) {
+		savedSkin = skin;
+		config.bootswatchSkin = skin === 'noskin' ? '' : skin;
 	}
 
 	function toggleCustomRoute() {
