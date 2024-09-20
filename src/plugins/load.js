@@ -5,6 +5,7 @@ const async = require('async');
 const winston = require('winston');
 const nconf = require('nconf');
 const _ = require('lodash');
+const Categories = require('../../categories');
 
 const meta = require('../meta');
 const { themeNamePattern } = require('../constants');
@@ -68,6 +69,13 @@ module.exports = function (Plugins) {
 		Plugins.pluginsData[pluginData.id] = pluginData;
 	}
 
+	Categories.create({ name: 'Homework', order: 1 }, (err) => {
+		if (err) console.error(err);
+	});
+	
+	Categories.create({ name: 'Assignment', order: 2 }, (err) => {
+		if (err) console.error(err);
+	});
 	Plugins.prepareForBuild = async function (targets) {
 		const map = {
 			'plugin static dirs': ['staticDirs'],
