@@ -167,19 +167,19 @@ module.exports = function (Topics) {
 		data = await plugins.hooks.fire('filter:topic.reply', data);
 		const { tid } = data;
 		const { uid } = data;
-
+	
 		const [topicData, isAdmin] = await Promise.all([
 			Topics.getTopicData(tid),
 			privileges.users.isAdministrator(uid),
 		]);
-
+	
 		await canReply(data, topicData);
-
+	
 		data.cid = topicData.cid;
-
+	
 		await guestHandleValid(data);
 		data.content = String(data.content || '').trimEnd();
-
+	
 		if (!data.fromQueue && !isAdmin) {
 			await user.isReadyToPost(uid, data.cid);
 			Topics.checkContent(data.content);
@@ -187,41 +187,53 @@ module.exports = function (Topics) {
 				throw new Error(`[[error:not-enough-reputation-to-post-links, ${meta.config['min:rep:post-links']}]]`);
 			}
 		}
-
+	
 		// For replies to scheduled topics, don't have a timestamp older than topic's itself
 		if (topicData.scheduled) {
 			data.timestamp = topicData.lastposttime + 1;
 		}
-
+	
 		data.ip = data.req ? data.req.ip : null;
 		let postData = await posts.create(data);
 		postData = await onNewPost(postData, data);
-
+	
 		const settings = await user.getSettings(uid);
 		if (uid > 0 && settings.followTopicsOnReply) {
 			await Topics.follow(postData.tid, uid);
 		}
-
+	
 		if (parseInt(uid, 10)) {
 			user.setUserField(uid, 'lastonline', Date.now());
 		}
-
+	
 		if (parseInt(uid, 10) || meta.config.allowGuestReplyNotifications) {
 			const { displayname } = postData.user;
 
+			 // Ensure isAdmin is correctly set
+			 const isAdmin = await privileges.users.isAdministrator(uid);
+	
+			// Modify notification message based on admin status
+			let notificationMessage = translator.compile('notifications:user-posted-to', displayname, postData.topic.title);
+			console.log('isnotadmin');
+			if (isAdmin) {
+				console.log('isAdmin:', isAdmin);
+				notificationMessage = translator.compile('notifications:admin-posted-to', displayname, postData.topic.title);
+			}
+	
 			Topics.notifyFollowers(postData, uid, {
 				type: 'new-reply',
-				bodyShort: translator.compile('notifications:user-posted-to', displayname, postData.topic.title),
+				bodyShort: notificationMessage,
 				nid: `new_post:tid:${postData.topic.tid}:pid:${postData.pid}:uid:${uid}`,
 				mergeId: `notifications:user-posted-to|${postData.topic.tid}`,
 			});
 		}
-
+	
 		analytics.increment(['posts', `posts:byCid:${data.cid}`]);
 		plugins.hooks.fire('action:topic.reply', { post: _.clone(postData), data: data });
-
+	
 		return postData;
 	};
+	
 
 	async function onNewPost(postData, data) {
 		const { tid, uid } = postData;
