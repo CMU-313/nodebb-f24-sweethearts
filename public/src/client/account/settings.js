@@ -71,9 +71,6 @@ define('forum/account/settings', [
 		return settings;
 	}
 
-	// Asked chatgpt to explain what the function does and advice on how to reduce complexity.
-	// Will check if the key is in the config object and if it is, it will update the value of the
-	// key in the config object with the new value.
 	function saveSettings(settings) {
 		console.log('Logging Jullia Montejo');
 		api.put(`/users/${ajaxify.data.uid}/settings`, { settings }).then(handleNewSettings);
