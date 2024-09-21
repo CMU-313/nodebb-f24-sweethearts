@@ -754,6 +754,37 @@ describe('Flags', () => {
 				done();
 			});
 		});
+
+		function validateUserFlag(done) {
+			Flags.validate({
+				type: 'user',
+				id: 1,
+				uid: 3,
+			}, (err) => {
+				assert.ok(err);
+				assert.strictEqual('[[error:not-enough-reputation-to-flag, 50]]', err.message);
+				Meta.configs.set('min:rep:flag', 0, done);
+			});
+		}
+
+		it('should not pass validation if type is user, flag threshold is set and user rep does not meet it', (done) => {
+			Meta.configs.set('min:rep:flag', '50', (err) => {
+				assert.ifError(err);
+				validateUserFlag(done);
+			});
+		});
+
+		it('should throw an error if user tries to flag themselves', (done) => {
+			Flags.validate({
+				type: 'user',
+				id: 1,
+				uid: 1,
+			}, (err) => {
+				assert.ok(err);
+				assert.strictEqual('[[error:cant-flag-self]]', err.message);
+				done();
+			});
+		});
 	});
 
 	describe('.appendNote()', () => {

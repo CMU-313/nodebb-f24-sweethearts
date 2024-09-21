@@ -273,6 +273,13 @@ Flags.sort = async function (flagIds, sort) {
 	return flagIds;
 };
 
+function checkSelfFlagError(payload) {
+	console.log('CHEYU TU - checkSelfFlagError');
+	if (parseInt(payload.id, 10) === parseInt(payload.uid, 10)) {
+		throw new Error('[[error:cant-flag-self]]');
+	}
+}
+
 Flags.validate = async function (payload) {
 	const [target, reporter] = await Promise.all([
 		Flags.getTarget(payload.type, payload.id, payload.uid),
@@ -283,7 +290,7 @@ Flags.validate = async function (payload) {
 		throw new Error('[[error:invalid-data]]');
 	} else if (target.deleted) {
 		throw new Error('[[error:post-deleted]]');
-	} else if (!reporter || !reporter.userslug) {
+	} else if (!reporter?.userslug) {
 		throw new Error('[[error:no-user]]');
 	} else if (reporter.banned) {
 		throw new Error('[[error:user-banned]]');
@@ -304,9 +311,7 @@ Flags.validate = async function (payload) {
 			throw new Error(`[[error:not-enough-reputation-to-flag, ${meta.config['min:rep:flag']}]]`);
 		}
 	} else if (payload.type === 'user') {
-		if (parseInt(payload.id, 10) === parseInt(payload.uid, 10)) {
-			throw new Error('[[error:cant-flag-self]]');
-		}
+		checkSelfFlagError(payload);
 		const editable = await privileges.users.canEdit(payload.uid, payload.id);
 		if (!editable && !meta.config['reputation:disabled'] && reporter.reputation < meta.config['min:rep:flag']) {
 			throw new Error(`[[error:not-enough-reputation-to-flag, ${meta.config['min:rep:flag']}]]`);
