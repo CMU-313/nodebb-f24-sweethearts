@@ -25,7 +25,7 @@ module.exports = function (User) {
 		'aboutme', 'signature', 'uploadedpicture', 'profileviews', 'reputation',
 		'postcount', 'topiccount', 'lastposttime', 'banned', 'banned:expire',
 		'status', 'flags', 'followerCount', 'followingCount', 'cover:url',
-		'cover:position', 'groupTitle', 'mutedUntil', 'mutedReason',
+		'cover:position', 'groupTitle', 'mutedUntil', 'mutedReason', 'role',
 	];
 
 	User.guestData = {
@@ -42,6 +42,7 @@ module.exports = function (User) {
 		status: 'offline',
 		reputation: 0,
 		'email:confirmed': 0,
+		role: 'guest',
 	};
 
 	let iconBackgrounds;
