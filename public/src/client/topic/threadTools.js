@@ -183,6 +183,45 @@ define('forum/topic/threadTools', [
 
 			return false;
 		}
+
+		function changeSavingToFavorites(type, state = 1) {
+			const method = state ? 'put' : 'del';
+			api[method](`/topics/${tid}/${type}`, {}, () => {
+				let message = '';
+				if (type === 'savedToFavorites') {
+					message = state ? 'saving message to favorites' : 'not saving message to favorites';
+				} 
+				// else if (type === 'unsave') {
+				// 	message = state ? '[[topic:ignoring-topic.message]]' : '[[topic:not-following-topic.message]]';
+				// }
+
+				// From here on out, type changes to 'unfollow' if state is falsy
+				if (!state) {
+					type = 'unsavedFromFavorites';
+				}
+
+				setSaveToFavoritesState(type);
+
+				alerts.alert({
+					alert_id: 'save-to-favorites_thread',
+					message: message,
+					type: 'success',
+					timeout: 5000,
+				});
+
+				hooks.fire('action:topics.changeWatching', { tid: tid, type: type });
+			}, () => {
+				alerts.alert({
+					type: 'danger',
+					alert_id: 'topic_save-to-favorites',
+					title: '[[global:please-log-in]]',
+					message: '[[topic:login-to-subscribe]]',
+					timeout: 5000,
+				});
+			});
+
+			return false;
+		}
 	};
 
 	ThreadTools.observeTopicLabels = function (labels) {
@@ -401,6 +440,18 @@ define('forum/topic/threadTools', [
 		menu = components.get('topic/ignoring/menu');
 		menu.toggleClass('hidden', state !== 'ignore');
 		components.get('topic/ignoring/check').toggleClass('fa-check', state === 'ignore');
+	}
+
+	function setSaveToFavoritesState(state) {
+		// const titles = {
+		// 	follow: '[[topic:watching]]',
+		// 	unfollow: '[[topic:not-watching]]',
+		// 	ignore: '[[topic:ignoring]]',
+		// };
+
+		const menu = components.get('topic/save-to-favorites/menu');
+		menu.toggleClass('hidden', state !== 'saved');
+		components.get('topic/save-to-favorites/check').toggleClass('fa-check', state === 'saved');
 	}
 
 
