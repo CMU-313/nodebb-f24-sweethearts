@@ -12,6 +12,7 @@ const meta = require('../meta');
 const plugins = require('../plugins');
 const utils = require('../utils');
 
+
 const backlinkRegex = new RegExp(`(?:${nconf.get('url').replace('/', '\\/')}|\b|\\s)\\/topic\\/(\\d+)(?:\\/\\w+)?`, 'g');
 
 module.exports = function (Topics) {
@@ -107,11 +108,13 @@ module.exports = function (Topics) {
 		if (!Array.isArray(postData) || !postData.length) {
 			return [];
 		}
+		console.log(uid);
 		const pids = postData.map(post => post && post.pid);
 
 		async function getPostUserData(field, method) {
 			const uids = _.uniq(postData.filter(p => p && parseInt(p[field], 10) >= 0).map(p => p[field]));
 			const userData = await method(uids);
+		
 			return _.zipObject(uids, userData);
 		}
 		const [
@@ -140,11 +143,17 @@ module.exports = function (Topics) {
 				postObj.replies = replies[i];
 				postObj.selfPost = parseInt(uid, 10) > 0 && parseInt(uid, 10) === postObj.uid;
 
+
 				// Username override for guests, if enabled
 				if (meta.config.allowGuestHandles && postObj.uid === 0 && postObj.handle) {
 					postObj.user.username = validator.escape(String(postObj.handle));
 					postObj.user.displayname = postObj.user.username;
+				} else { //later I want to add logic to check if the user has the anonymous toggle on!!!
+					postObj.user.username = "anonymous";
+					postObj.user.displayname = "anonymous";
 				}
+				
+		
 			}
 		});
 
