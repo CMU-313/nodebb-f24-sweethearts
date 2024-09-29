@@ -160,6 +160,7 @@ define('forum/topic/threadTools', [
 				if (!state) {
 					type = 'unfollow';
 				}
+				console.log("changeWatching");
 
 				setFollowState(type);
 
@@ -184,11 +185,18 @@ define('forum/topic/threadTools', [
 			return false;
 		}
 
+		topicContainer.on('click', '[component="topic/save-to-favorites"]', function () {
+			changeSavingToFavorites('saved-to-favorites');
+		});
+		topicContainer.on('click', '[component="topic/remove-from-favorites"]', function () {
+			changeSavingToFavorites('remove-from-favorites', 0);
+		});
+
 		function changeSavingToFavorites(type, state = 1) {
 			const method = state ? 'put' : 'del';
 			api[method](`/topics/${tid}/${type}`, {}, () => {
 				let message = '';
-				if (type === 'savedToFavorites') {
+				if (type === 'saved-to-favorites') {
 					message = state ? 'saving message to favorites' : 'not saving message to favorites';
 				} 
 				// else if (type === 'unsave') {
@@ -197,9 +205,10 @@ define('forum/topic/threadTools', [
 
 				// From here on out, type changes to 'unfollow' if state is falsy
 				if (!state) {
-					type = 'unsavedFromFavorites';
+					type = 'remove-from-favorites';
 				}
 
+				console.log("changeSavingToFavorites", state);
 				setSaveToFavoritesState(type);
 
 				alerts.alert({
@@ -416,6 +425,7 @@ define('forum/topic/threadTools', [
 	};
 
 	function setFollowState(state) {
+		console.log('setFollowState', state);
 		const titles = {
 			follow: '[[topic:watching]]',
 			unfollow: '[[topic:not-watching]]',
@@ -448,7 +458,7 @@ define('forum/topic/threadTools', [
 		// 	unfollow: '[[topic:not-watching]]',
 		// 	ignore: '[[topic:ignoring]]',
 		// };
-
+		console.log('setSaveToFavoritesState', state);
 		const menu = components.get('topic/save-to-favorites/menu');
 		menu.toggleClass('hidden', state !== 'saved');
 		components.get('topic/save-to-favorites/check').toggleClass('fa-check', state === 'saved');
