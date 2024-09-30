@@ -105,7 +105,7 @@ Topics.favorite = async (req, res) => {
     const uid = req.user.uid;    // User ID from the session
 
     try {
-        // Add the topic to the user's favorites list in the database
+        // Add the topic to the user's favorites in the database
         await db.setAdd(`uid:${uid}:favorites`, tid);
         await db.sortedSetAdd(`tid:${tid}:favoritedBy`, Date.now(), uid);
 
@@ -120,7 +120,7 @@ Topics.unfavorite = async (req, res) => {
     const uid = req.user.uid;    // User ID from the session
 
     try {
-        // Remove the topic from the user's favorites list in the database
+        // Remove the topic from the user's favorites in the database
         await db.setRemove(`uid:${uid}:favorites`, tid);
         await db.sortedSetRemove(`tid:${tid}:favoritedBy`, uid);
 
