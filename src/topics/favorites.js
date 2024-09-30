@@ -2,10 +2,6 @@
 'use strict';
 
 const db = require('../database');
-const notifications = require('../notifications');
-const privileges = require('../privileges');
-const plugins = require('../plugins');
-const utils = require('../utils');
 
 module.exports = function (Topics) {
 	Topics.toggleFavorite = async function (tid, uid) {

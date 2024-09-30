@@ -167,7 +167,7 @@ define('forum/topic/threadTools', [
 				if (!state) {
 					type = 'unfollow';
 				}
-				
+
 				setFollowState(type);
 
 				alerts.alert({
@@ -432,7 +432,7 @@ define('forum/topic/threadTools', [
 			favorite: '[[topic:favorited]]',
 			unfavorite: '[[topic:not-favorited]]',
 		};
-	
+
 		translator.translate(titles[state], function (translatedTitle) {
 			const tooltip = bootstrap.Tooltip.getInstance('[component="topic/favorite"]');
 			if (tooltip) {
