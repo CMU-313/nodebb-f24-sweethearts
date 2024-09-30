@@ -100,6 +100,37 @@ Topics.unfollow = async (req, res) => {
 	helpers.formatApiResponse(200, res);
 };
 
+Topics.favorite = async (req, res) => {
+    const tid = req.params.tid;  // Topic ID from the request
+    const uid = req.user.uid;    // User ID from the session
+
+    try {
+        // Add the topic to the user's favorites list in the database
+        await db.setAdd(`uid:${uid}:favorites`, tid);
+        await db.sortedSetAdd(`tid:${tid}:favoritedBy`, Date.now(), uid);
+
+        helpers.formatApiResponse(200, res, { message: 'Topic added to favorites successfully' });
+    } catch (err) {
+        helpers.formatApiResponse(500, res, { error: err.message });
+    }
+};
+
+Topics.unfavorite = async (req, res) => {
+    const tid = req.params.tid;  // Topic ID from the request
+    const uid = req.user.uid;    // User ID from the session
+
+    try {
+        // Remove the topic from the user's favorites list in the database
+        await db.setRemove(`uid:${uid}:favorites`, tid);
+        await db.sortedSetRemove(`tid:${tid}:favoritedBy`, uid);
+
+        helpers.formatApiResponse(200, res, { message: 'Topic removed from favorites successfully' });
+    } catch (err) {
+        helpers.formatApiResponse(500, res, { error: err.message });
+    }
+};
+
+
 Topics.updateTags = async (req, res) => {
 	const payload = await api.topics.updateTags(req, {
 		tid: req.params.tid,

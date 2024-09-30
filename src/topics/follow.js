@@ -9,6 +9,7 @@ const utils = require('../utils');
 
 module.exports = function (Topics) {
 	Topics.toggleFollow = async function (tid, uid) {
+		console.log("follow.js toggle follow");
 		const exists = await Topics.exists(tid);
 		if (!exists) {
 			throw new Error('[[error:no-topic]]');
@@ -23,10 +24,12 @@ module.exports = function (Topics) {
 	};
 
 	Topics.follow = async function (tid, uid) {
+		console.log("follow.js Topics.follow");
 		await setWatching(follow, unignore, 'action:topic.follow', tid, uid);
 	};
 
 	Topics.unfollow = async function (tid, uid) {
+		console.log("follow.js Topics.unfollow");
 		await setWatching(unfollow, unignore, 'action:topic.unfollow', tid, uid);
 	};
 

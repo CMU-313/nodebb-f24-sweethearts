@@ -137,9 +137,11 @@ define('forum/topic/threadTools', [
 		});
 
 		topicContainer.on('click', '[component="topic/following"]', function () {
+			console.log("threadTool.js clicked on topic/following");
 			changeWatching('follow');
 		});
 		topicContainer.on('click', '[component="topic/not-following"]', function () {
+			console.log("threadTool.js clicked on topic/not-following");
 			changeWatching('follow', 0);
 		});
 		topicContainer.on('click', '[component="topic/ignoring"]', function () {
@@ -160,7 +162,7 @@ define('forum/topic/threadTools', [
 				if (!state) {
 					type = 'unfollow';
 				}
-				console.log("changeWatching");
+				console.log("threadTools.js changeWatching: ", state);
 
 				setFollowState(type);
 
@@ -185,52 +187,88 @@ define('forum/topic/threadTools', [
 			return false;
 		}
 
-		topicContainer.on('click', '[component="topic/save-to-favorites"]', function () {
-			changeSavingToFavorites('saved-to-favorites');
-		});
-		topicContainer.on('click', '[component="topic/remove-from-favorites"]', function () {
-			changeSavingToFavorites('remove-from-favorites', 0);
+		// topicContainer.on('click', '[component="topic/save-to-favorites"]', function () {
+		// 	changeSavingToFavorites('saved-to-favorites');
+		// });
+		// topicContainer.on('click', '[component="topic/remove-from-favorites"]', function () {
+		// 	changeSavingToFavorites('remove-from-favorites', 0);
+		// });
+
+		topicContainer.on('click', '[component="topic/favorite"]', function () {
+			changeFavorite('favorite');
 		});
 
-		function changeSavingToFavorites(type, state = 1) {
+		topicContainer.on('click', '[component="topic/unfavorite"]', function () {
+			changeFavorite('favorite', 0);
+		});
+
+		function changeFavorite(type, state = 1) {
 			const method = state ? 'put' : 'del';
 			api[method](`/topics/${tid}/${type}`, {}, () => {
-				let message = '';
-				if (type === 'saved-to-favorites') {
-					message = state ? 'saving message to favorites' : 'not saving message to favorites';
-				} 
-				// else if (type === 'unsave') {
-				// 	message = state ? '[[topic:ignoring-topic.message]]' : '[[topic:not-following-topic.message]]';
-				// }
-
-				// From here on out, type changes to 'unfollow' if state is falsy
-				if (!state) {
-					type = 'remove-from-favorites';
-				}
-
-				console.log("changeSavingToFavorites", state);
-				setSaveToFavoritesState(type);
-
+				let message = state ? '[[topic:favorited]]' : '[[topic:unfavorited]]';
+		
+				setFavoriteState(state ? 'favorite' : 'unfavorite');
+		
 				alerts.alert({
-					alert_id: 'save-to-favorites_thread',
+					alert_id: 'favorite_thread',
 					message: message,
 					type: 'success',
 					timeout: 5000,
 				});
-
-				hooks.fire('action:topics.changeWatching', { tid: tid, type: type });
+		
+				hooks.fire('action:topics.changeFavorite', { tid: tid, type: type });
 			}, () => {
 				alerts.alert({
 					type: 'danger',
-					alert_id: 'topic_save-to-favorites',
+					alert_id: 'topic_favorite',
 					title: '[[global:please-log-in]]',
-					message: '[[topic:login-to-subscribe]]',
+					message: '[[topic:login-to-favorite]]',
 					timeout: 5000,
 				});
 			});
-
+		
 			return false;
 		}
+
+	// 	function changeSavingToFavorites(type, state = 1) {
+	// 		const method = state ? 'put' : 'del';
+	// 		api[method](`/topics/${tid}/${type}`, {}, () => {
+	// 			let message = '';
+	// 			if (type === 'saved-to-favorites') {
+	// 				message = state ? 'saving message to favorites' : 'not saving message to favorites';
+	// 			} 
+	// 			// else if (type === 'unsave') {
+	// 			// 	message = state ? '[[topic:ignoring-topic.message]]' : '[[topic:not-following-topic.message]]';
+	// 			// }
+
+	// 			// From here on out, type changes to 'unfollow' if state is falsy
+	// 			if (!state) {
+	// 				type = 'remove-from-favorites';
+	// 			}
+
+	// 			console.log("threadTools.js changeSavingToFavorites:", state);
+	// 			setSaveToFavoritesState(type);
+
+	// 			alerts.alert({
+	// 				alert_id: 'save-to-favorites_thread',
+	// 				message: message,
+	// 				type: 'success',
+	// 				timeout: 5000,
+	// 			});
+
+	// 			hooks.fire('action:topics.changeWatching', { tid: tid, type: type });
+	// 		}, () => {
+	// 			alerts.alert({
+	// 				type: 'danger',
+	// 				alert_id: 'topic_save-to-favorites',
+	// 				title: '[[global:please-log-in]]',
+	// 				message: '[[topic:login-to-subscribe]]',
+	// 				timeout: 5000,
+	// 			});
+	// 		});
+
+	// 		return false;
+	// 	}
 	};
 
 	ThreadTools.observeTopicLabels = function (labels) {
@@ -425,7 +463,7 @@ define('forum/topic/threadTools', [
 	};
 
 	function setFollowState(state) {
-		console.log('setFollowState', state);
+		console.log('threadTools.js setFollowState:', state);
 		const titles = {
 			follow: '[[topic:watching]]',
 			unfollow: '[[topic:not-watching]]',
@@ -452,17 +490,34 @@ define('forum/topic/threadTools', [
 		components.get('topic/ignoring/check').toggleClass('fa-check', state === 'ignore');
 	}
 
-	function setSaveToFavoritesState(state) {
-		// const titles = {
-		// 	follow: '[[topic:watching]]',
-		// 	unfollow: '[[topic:not-watching]]',
-		// 	ignore: '[[topic:ignoring]]',
-		// };
-		console.log('setSaveToFavoritesState', state);
-		const menu = components.get('topic/save-to-favorites/menu');
-		menu.toggleClass('hidden', state !== 'saved');
-		components.get('topic/save-to-favorites/check').toggleClass('fa-check', state === 'saved');
+	function setFavoriteState(state) {
+		const titles = {
+			favorite: '[[topic:favorited]]',
+			unfavorite: '[[topic:not-favorited]]',
+		};
+	
+		translator.translate(titles[state], function (translatedTitle) {
+			const tooltip = bootstrap.Tooltip.getInstance('[component="topic/favorite"]');
+			if (tooltip) {
+				tooltip.setContent({ '.tooltip-inner': translatedTitle });
+			}
+		});
+	
+		components.get('topic/favorite').toggleClass('hidden', state !== 'favorite');
+		components.get('topic/unfavorite').toggleClass('hidden', state !== 'unfavorite');
 	}
+
+	// function setSaveToFavoritesState(state) {
+	// 	// const titles = {
+	// 	// 	follow: '[[topic:watching]]',
+	// 	// 	unfollow: '[[topic:not-watching]]',
+	// 	// 	ignore: '[[topic:ignoring]]',
+	// 	// };
+	// 	console.log('threadTools.js setSaveToFavoritesState:', state);
+	// 	const menu = components.get('topic/save-to-favorites/menu');
+	// 	menu.toggleClass('hidden', state !== 'saved');
+	// 	components.get('topic/save-to-favorites/check').toggleClass('fa-check', state === 'saved');
+	// }
 
 
 	return ThreadTools;
