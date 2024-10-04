@@ -109,10 +109,14 @@ Topics.favorite = async (req, res) => {
 		await db.setAdd(`uid:${uid}:favorites`, tid);
 		await db.sortedSetAdd(`tid:${tid}:favoritedBy`, Date.now(), uid);
 
-		helpers.formatApiResponse(200, res, { message: 'Topic added to favorites successfully' });
-	} catch (err) {
-		helpers.formatApiResponse(500, res, { error: err.message });
-	}
+		helpers.formatApiResponse(200, res, {
+			status: 'success',
+			message: 'Topic added to favorites successfully',
+			response: {},
+		  });
+		} catch (err) {
+			helpers.formatApiResponse(500, res, { status: 'error', message: err.message });
+		}
 };
 
 Topics.unfavorite = async (req, res) => {
@@ -124,10 +128,14 @@ Topics.unfavorite = async (req, res) => {
 		await db.setRemove(`uid:${uid}:favorites`, tid);
 		await db.sortedSetRemove(`tid:${tid}:favoritedBy`, uid);
 
-		helpers.formatApiResponse(200, res, { message: 'Topic removed from favorites successfully' });
-	} catch (err) {
-		helpers.formatApiResponse(500, res, { error: err.message });
-	}
+		helpers.formatApiResponse(200, res, {
+			status: 'success',
+			message: 'Topic removed from favorites successfully',
+			response: {},
+		});
+		} catch (err) {
+			helpers.formatApiResponse(500, res, { status: 'error', message: err.message });
+		}
 };
 
 

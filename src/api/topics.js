@@ -175,10 +175,16 @@ topicsAPI.unfollow = async function (caller, data) {
 
 topicsAPI.favorite = async function (caller, data) {
 	await topics.favorite(data.tid, caller.uid);
+
+	const response = { status: "success", message: "Topic favorited successfully" };
+	return response;
 };
 
 topicsAPI.unfavorite = async function (caller, data) {
 	await topics.unfavorite(data.tid, caller.uid);
+
+	const response = { status: "success", message: "Topic favorited successfully" };
+	return response;
 };
 
 topicsAPI.updateTags = async (caller, { tid, tags }) => {
