@@ -55,6 +55,11 @@ helpers.setupApiRoute = function (...args) {
 	let middlewares = args.length > 4 ? args[args.length - 2] : [];
 	const controller = args[args.length - 1];
 
+	console.log("args: ", args);
+	console.log(`Setting up API route: ${verb.toUpperCase()} ${name}`);
+    console.log(`Controller: ${controller}`);
+    console.log(`Middlewares: ${middlewares}`);
+
 	middlewares = [
 		middleware.autoLocale,
 		middleware.applyBlacklist,

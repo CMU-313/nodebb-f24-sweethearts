@@ -21,15 +21,9 @@ put:
             properties:
               status:
                 $ref: ../../../components/schemas/Status.yaml#/Status
-              message:
-                type: string
-                description: Success message
-                example: "Topic favorited successfully"
               response:
                 type: object
                 properties: {}
-          required:
-            - status
 
 delete:
   tags:
@@ -54,12 +48,6 @@ delete:
             properties:
               status:
                 $ref: ../../../components/schemas/Status.yaml#/Status
-              message:
-                type: string
-                description: Success message
-                example: "Topic unfavorited successfully"
               response:
                 type: object
                 properties: {}
-          required:
-            - status
