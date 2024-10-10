@@ -52,6 +52,8 @@ get:
                     type: number
                   bookmarks:
                     type: number
+                  anonymous:
+                    type: boolean
                   votes:
                     type: number
                   timestampISO:
