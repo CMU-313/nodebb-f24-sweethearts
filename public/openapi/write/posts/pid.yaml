@@ -53,7 +53,7 @@ get:
                   bookmarks:
                     type: number
                   anonymous:
-                    type: boolean
+                    type: number
                   votes:
                     type: number
                   timestampISO:
