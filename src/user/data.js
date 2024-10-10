@@ -137,9 +137,6 @@ module.exports = function (User) {
 
 	User.getUserFields = async function (uid, fields) {
 		const users = await User.getUsersFields([uid], fields);
-		if (!fields.includes('anonymous')) {
-			fields.push('anonymous');
-		}
 		return users ? users[0] : null;
 	};
 
