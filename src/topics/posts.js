@@ -1,6 +1,4 @@
-
 'use strict';
-
 const _ = require('lodash');
 const validator = require('validator');
 const nconf = require('nconf');
@@ -105,10 +103,11 @@ module.exports = function (Topics) {
 	}
 
 	Topics.addPostData = async function (postData, uid) {
+		const isAnonymous = await posts.getPostField(postData, 'anonymous');
+		console.log('anonymous', isAnonymous);
 		if (!Array.isArray(postData) || !postData.length) {
 			return [];
 		}
-		console.log(uid);
 		const pids = postData.map(post => post && post.pid);
 
 		async function getPostUserData(field, method) {
@@ -131,7 +130,7 @@ module.exports = function (Topics) {
 			getPostReplies(postData, uid),
 			Topics.addParentPosts(postData),
 		]);
-
+		
 		postData.forEach((postObj, i) => {
 			if (postObj) {
 				postObj.user = postObj.uid ? userData[postObj.uid] : { ...userData[postObj.uid] };
@@ -142,17 +141,17 @@ module.exports = function (Topics) {
 				postObj.votes = postObj.votes || 0;
 				postObj.replies = replies[i];
 				postObj.selfPost = parseInt(uid, 10) > 0 && parseInt(uid, 10) === postObj.uid;
+				
 
 
 				// Username override for guests, if enabled
 				if (meta.config.allowGuestHandles && postObj.uid === 0 && postObj.handle) {
 					postObj.user.username = validator.escape(String(postObj.handle));
 					postObj.user.displayname = postObj.user.username;
-				} else { //later I want to add logic to check if the user has the anonymous toggle on!!!
+				} else if (isAnonymous){
 					postObj.user.username = "anonymous";
 					postObj.user.displayname = "anonymous";
 				}
-				
 		
 			}
 		});
@@ -161,6 +160,7 @@ module.exports = function (Topics) {
 			posts: postData,
 			uid: uid,
 		});
+		
 		return result.posts;
 	};
 
