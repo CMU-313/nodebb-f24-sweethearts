@@ -1,4 +1,5 @@
 'use strict';
+
 const _ = require('lodash');
 const validator = require('validator');
 const nconf = require('nconf');
@@ -113,7 +114,6 @@ module.exports = function (Topics) {
 		async function getPostUserData(field, method) {
 			const uids = _.uniq(postData.filter(p => p && parseInt(p[field], 10) >= 0).map(p => p[field]));
 			const userData = await method(uids);
-		
 			return _.zipObject(uids, userData);
 		}
 		const [
@@ -130,7 +130,6 @@ module.exports = function (Topics) {
 			getPostReplies(postData, uid),
 			Topics.addParentPosts(postData),
 		]);
-		
 		postData.forEach((postObj, i) => {
 			if (postObj) {
 				postObj.user = postObj.uid ? userData[postObj.uid] : { ...userData[postObj.uid] };
@@ -141,18 +140,14 @@ module.exports = function (Topics) {
 				postObj.votes = postObj.votes || 0;
 				postObj.replies = replies[i];
 				postObj.selfPost = parseInt(uid, 10) > 0 && parseInt(uid, 10) === postObj.uid;
-				
-
-
 				// Username override for guests, if enabled
 				if (meta.config.allowGuestHandles && postObj.uid === 0 && postObj.handle) {
 					postObj.user.username = validator.escape(String(postObj.handle));
 					postObj.user.displayname = postObj.user.username;
-				} else if (isAnonymous){
-					postObj.user.username = "anonymous";
-					postObj.user.displayname = "anonymous";
+				} else if (isAnonymous) {
+					postObj.user.username = 'anonymous';
+					postObj.user.displayname = 'anonymous';
 				}
-		
 			}
 		});
 
@@ -160,7 +155,6 @@ module.exports = function (Topics) {
 			posts: postData,
 			uid: uid,
 		});
-		
 		return result.posts;
 	};
 

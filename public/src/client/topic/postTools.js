@@ -267,7 +267,6 @@ define('forum/topic/postTools', [
 			openChat($(this));
 		});
 	}
-
 	async function onReplyClicked(button, tid) {
 		const selectedNode = await getSelectedNode();
 

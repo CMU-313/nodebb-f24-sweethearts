@@ -50,11 +50,11 @@ topicsAPI.get = async function (caller, data) {
 	return topic;
 };
 
-topicsAPI.create = async function (caller, data) {	
+topicsAPI.create = async function (caller, data) {
 	if (!data) {
 		throw new Error('[[error:invalid-data]]');
 	}
-	const payload = {...data, anonymous: data.anonymous || false};
+	const payload = { ...data, anonymous: data.anonymous || false };
 	payload.tags = payload.tags || [];
 	apiHelpers.setDefaultPostData(caller, payload);
 	const isScheduling = parseInt(data.timestamp, 10) > payload.timestamp;
