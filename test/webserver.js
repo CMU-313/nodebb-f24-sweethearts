@@ -1,8 +1,8 @@
 'use strict';
 
 const assert = require('assert');
-const webserver = require('../src/webserver'); 
-const topics = require('../src/topics/tags'); 
+const webserver = require('../src/webserver');
+const topics = require('../src/topics/tags');
 const db = require('../src/database');
 
 describe('createNewTag', () => {
