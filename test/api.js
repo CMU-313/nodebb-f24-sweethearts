@@ -524,7 +524,7 @@ describe('API', async () => {
 						if (http200 && result.response.statusCode === 200) {
 							const hasJSON = http200.content && http200.content['application/json'];
 							if (hasJSON) {
-								result.body.forEach(post => {
+								result.body.forEach((post) => {
 									assert(post.hasOwnProperty('anonymous'), "Post should have an 'anonymous' attribute");
 								});
 							}
