@@ -5,7 +5,7 @@ const webserver = require('../src/webserver');
 const topics = require('../src/topics/tags');
 const db = require('../src/database');
 
-//Automated test cases generated with the help of ChatGPT
+// Automated test cases generated with the help of ChatGPT
 
 describe('createNewTag', () => {
 	let originalCreateEmptyTag;
@@ -24,13 +24,13 @@ describe('createNewTag', () => {
 		// Simulate a scenario where the function tries to add tags to an invalid forum category
 
 		// Assuming there's an invalid category check in the createNewTag function, expect no tags to be added in this case
-		await Topics.deleteTags(['Homework', 'Assignment']);
+		await topics.deleteTags(['Homework', 'Assignment']);
 
 		// Act: Run createNewTag with invalid forum categories (this would need to be simulated in the webserver function)
-		await Topics.createNewTag({ forumCategory: 'InvalidCategory' });
+		await topics.createNewTag({ forumCategory: 'InvalidCategory' });
 
 		// Assert: Check that no tags have been added
-		const tags = await Topics.getTags(0, -1);
+		const tags = await topics.getTags(0, -1);
 		assert.strictEqual(tags.length, 0, 'No tags should be added for invalid forum categories');
 	});
 });
