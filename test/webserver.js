@@ -6,7 +6,7 @@ const topics = require('../src/topics/tags'); // Ensure path is correct
 
 describe('createNewTag', () => {
 	let originalCreateEmptyTag;
-	
+
 	before(() => {
 		// Backup the original createEmptyTag function
 		originalCreateEmptyTag = topics.createEmptyTag;
@@ -27,7 +27,7 @@ describe('createNewTag', () => {
 		};
 
 		// Capture console.log output
-		let logOutput = [];
+		const logOutput = [];
 		const originalLog = console.log;
 		console.log = msg => logOutput.push(msg);
 
