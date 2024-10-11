@@ -420,6 +420,7 @@ describe('Notifications', () => {
 		});
 
 		it('should create a faculty-reply notification when an admin (faculty) replies', async () => {
+			console.log('Starting test: should create a faculty-reply notification when an admin (faculty) replies');
 			const postData = await topics.reply({
 				uid: adminUid,
 				tid: tid,
@@ -443,9 +444,11 @@ describe('Notifications', () => {
 
 			assert(facultyReplyNotif, 'Faculty reply notification should exist');
 			assert.strictEqual(facultyReplyNotif.bodyShort, `[[notifications:faculty-posted-to, ${postData.user.displayname}, ${postData.topic.title}]]`);
+			console.log("Finished test: should create a faculty-reply notification when an admin (faculty) replies");
 		});
 
 		it('should not create a faculty-reply notification when a regular user replies', async () => {
+			console.log('Starting test: should not create a faculty-reply notification when a regular user replies');
 			// Clear existing notifications
 			await db.delete(`uid:${regularUid}:notifications:unread`);
 
@@ -478,13 +481,93 @@ describe('Notifications', () => {
 			if (notifData.length > 0) {
 				console.log('Unexpected notifications:', notifData);
 			}
+			console.log('Finished test: should not create a faculty-reply notification when a regular user replies');
+		});
+
+		it('should allow users to mark faculty-reply notifications as read', async () => {
+			console.log('Starting test: should allow users to mark faculty-reply notifications as read');
+	
+			// Clear existing notifications
+			await user.notifications.deleteAll(regularUid);
+			console.log('Cleared existing notifications for regularUid:', regularUid);
+			const isAdmin = await groups.isMember(adminUid, 'administrators');
+	
+			// Create a faculty reply
+			const replyData = await topics.reply({
+				uid: adminUid,
+				tid: tid,
+				content: 'This is another faculty reply to ensure a notification exists',
+			});
+			console.log('Faculty reply created:', replyData);
+	
+			// Wait for notification to be created
+			await sleep(5000);
+	
+			// Get all unread notifications
+			const notificationIds = await db.getSortedSetRange(`uid:${regularUid}:notifications:unread`, 0, -1);
+			console.log('Notification IDs:', notificationIds);
+	
+			const notificationData = await db.getObjects(notificationIds.map(nid => `notifications:${nid}`));
+			console.log('Notification Data:', JSON.stringify(notificationData, null, 2));
+	
+			// Check for faculty-reply notification
+			const facultyReplyNotif = notificationData.find(n => n.nid && n.nid.includes('faculty_post'));
+	
+			// For debugging purposes
+			if (!facultyReplyNotif) {
+				console.log('Faculty reply notification not found. Notification types:', notificationData.map(n => n.type));
+			} else {
+				console.log('Found faculty reply notification:', facultyReplyNotif);
+			}
+	
+			assert(facultyReplyNotif, 'Faculty reply notification should exist');
+	
+			if (facultyReplyNotif) {
+				await socketNotifications.markRead({ uid: regularUid }, facultyReplyNotif.nid);
+	
+				const updatedNotifications = await db.getSortedSetRange(`uid:${regularUid}:notifications:read`, 0, -1);
+				const readFacultyReplyNotif = updatedNotifications.includes(facultyReplyNotif.nid);
+	
+				assert(readFacultyReplyNotif, 'Faculty reply notification should be marked as read');
+			}
+	
+			console.log('Finished test: should allow users to mark faculty-reply notifications as read');
 		});
 
 		it('should allow users to configure faculty-reply notification preferences', async () => {
+			console.log('Starting test: should allow users to configure faculty-reply notification preferences');
 			await user.setSetting(regularUid, 'notificationType_faculty-reply', 'notification');
 
 			const settings = await user.getSettings(regularUid);
 			assert.strictEqual(settings['notificationType_faculty-reply'], 'notification', 'Faculty reply notification preference should be set');
+			console.log('Finished test: should allow users to configure faculty-reply notification preferences');
+		});
+
+		it('should create multiple faculty-reply notifications for multiple admin replies', async () => {
+			console.log('Starting test: should create multiple faculty-reply notifications for multiple admin replies');
+			
+			// Clear existing notifications
+			await user.notifications.deleteAll(regularUid);
+		
+			// Creating multiple faculty replies
+			for (let i = 0; i < 3; i++) {
+				await topics.reply({
+					uid: adminUid,
+					tid: tid,
+					content: `This is faculty reply number ${i + 1}`,
+				});
+			}
+		
+			// Wait for notifications to be created
+			await sleep(5000);
+		
+			const notificationIds = await db.getSortedSetRange(`uid:${regularUid}:notifications:unread`, 0, -1);
+			const notificationData = await db.getObjects(notificationIds.map(nid => `notifications:${nid}`));
+		
+			const facultyReplyNotifs = notificationData.filter(n => n.nid && n.nid.includes('faculty_post'));
+		
+			assert.strictEqual(facultyReplyNotifs.length, 3, 'Should have 3 faculty reply notifications');
+			console.log('Finished test: should create multiple faculty-reply notifications for multiple admin replies');
 		});
 
 		after(async () => {
