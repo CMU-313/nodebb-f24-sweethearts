@@ -54,8 +54,7 @@ topicsAPI.create = async function (caller, data) {
 	if (!data) {
 		throw new Error('[[error:invalid-data]]');
 	}
-
-	const payload = { ...data };
+	const payload = { ...data, anonymous: data.anonymous || false };
 	payload.tags = payload.tags || [];
 	apiHelpers.setDefaultPostData(caller, payload);
 	const isScheduling = parseInt(data.timestamp, 10) > payload.timestamp;
@@ -72,7 +71,6 @@ topicsAPI.create = async function (caller, data) {
 	if (shouldQueue) {
 		return await posts.addToQueue(payload);
 	}
-
 	const result = await topics.post(payload);
 	await topics.thumbs.migrate(data.uuid, result.topicData.tid);
 
