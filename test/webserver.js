@@ -8,16 +8,6 @@ const db = require('../src/database');
 describe('createNewTag', () => {
 	let originalCreateEmptyTag;
 
-	before(async () => {
-		// Clear any existing tags before running the tests
-		await db.clearTags(); // Assuming there's a method to clear all tags in the database
-	});
-
-	after(async () => {
-		// Clean up by clearing tags after tests
-		await db.clearTags();
-	});
-
 	it('should add "Homework" and "Assignment" tags correctly to the database', async () => {
 		// Act: Run the createNewTag function to add default tags
 		await webserver.createNewTag();
