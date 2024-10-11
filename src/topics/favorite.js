@@ -3,6 +3,7 @@
 
 const db = require('../database');
 
+// Credit: partially written by ChatGPT
 module.exports = function (Topics) {
 	Topics.toggleFavorite = async function (tid, uid) {
 		const exists = await Topics.exists(tid);
