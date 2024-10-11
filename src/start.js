@@ -5,13 +5,15 @@ const winston = require('winston');
 
 const start = module.exports;
 
+const db = require('./database');
+const Topics = require('./topics');
+
 start.start = async function () {
 	printStartupInfo();
 
 	addProcessHandlers();
 
 	try {
-		const db = require('./database');
 		await db.init();
 		await db.checkCompatibility();
 
@@ -149,3 +151,28 @@ async function shutdown(code) {
 		return process.exit(code || 0);
 	}
 }
+
+/* eslint-disable no-unused-vars */
+async function getTopicIdByTitle(title) {
+	const topic = await db.models.topics.findOne({ title });
+	return topic ? topic.tid : null;
+}
+
+async function addTagsToTopic() {
+	try {
+		const tid = await getTopicIdByTitle('Welcome to your NodeBB!');
+		if (tid) {
+			console.log(`Topic ID: ${tid}`);
+
+			const timestamp = Date.now(); // Get current timestamp
+			const tagsToAdd = ['Homework', 'Assignment']; // Default tags
+
+			await Topics.createTags(tagsToAdd, tid, timestamp); // Add tags to the topic
+		} else {
+			console.error('Topic not found');
+		}
+	} catch (error) {
+		console.error('Error adding tags:', error);
+	}
+}
+/* eslint-enable no-unused-vars */

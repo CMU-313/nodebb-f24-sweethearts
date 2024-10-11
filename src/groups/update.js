@@ -32,28 +32,7 @@ module.exports = function (Groups) {
 			}
 		});
 
-		const payload = {
-			description: values.description || '',
-			icon: values.icon || '',
-			labelColor: values.labelColor || '#000000',
-			textColor: values.textColor || '#ffffff',
-		};
-
-		if (values.hasOwnProperty('userTitle')) {
-			payload.userTitle = values.userTitle || '';
-		}
-
-		if (values.hasOwnProperty('userTitleEnabled')) {
-			payload.userTitleEnabled = values.userTitleEnabled ? '1' : '0';
-		}
-
-		if (values.hasOwnProperty('hidden')) {
-			payload.hidden = values.hidden ? '1' : '0';
-		}
-
-		if (values.hasOwnProperty('private')) {
-			payload.private = values.private ? '1' : '0';
-		}
+		const payload = payload_helper(values);
 
 		if (values.hasOwnProperty('disableJoinRequests')) {
 			payload.disableJoinRequests = values.disableJoinRequests ? '1' : '0';
@@ -89,6 +68,32 @@ module.exports = function (Groups) {
 			values: values,
 		});
 	};
+
+	function payload_helper(values) {
+		const payload = {
+			description: values.description || '',
+			icon: values.icon || '',
+			labelColor: values.labelColor || '#000000',
+			textColor: values.textColor || '#ffffff',
+		};
+
+		if (values.hasOwnProperty('userTitle')) {
+			payload.userTitle = values.userTitle || '';
+		}
+
+		if (values.hasOwnProperty('userTitleEnabled')) {
+			payload.userTitleEnabled = values.userTitleEnabled ? '1' : '0';
+		}
+
+		if (values.hasOwnProperty('hidden')) {
+			payload.hidden = values.hidden ? '1' : '0';
+		}
+
+		if (values.hasOwnProperty('private')) {
+			payload.private = values.private ? '1' : '0';
+		}
+		return payload;
+	}
 
 	async function updateVisibility(groupName, hidden) {
 		if (hidden) {

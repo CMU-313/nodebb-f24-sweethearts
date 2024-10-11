@@ -1,3 +1,6 @@
 {
-	"extends": "nodebb"
+	"extends": "nodebb",
+	"parserOptions": {
+		"ecmaVersion": 2020 // This change in configuration is suggested by Copilot
+	}
 }
