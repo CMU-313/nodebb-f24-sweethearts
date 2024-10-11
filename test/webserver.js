@@ -15,7 +15,7 @@ describe('createNewTag', () => {
 		await webserver.createNewTag();
 
 		// Assert: Check if the tags are added correctly to the database
-		const tags = await db.getTags(); // Assuming getTags() returns all tags from the database
+		const tags = await topics.getTags(0, -1);
 		assert.strictEqual(tags.includes('Homework'), true, '"Homework" tag should be in the database');
 		assert.strictEqual(tags.includes('Assignment'), true, '"Assignment" tag should be in the database');
 	});
@@ -24,7 +24,7 @@ describe('createNewTag', () => {
 		// Simulate a scenario where the function tries to add tags to an invalid forum category
 
 		// Assuming there's an invalid category check in the createNewTag function, expect no tags to be added in this case
-		await topics.deleteTags(['Homework', 'Assignment']);
+		await topics.deleteTags(['Homework', 'Assignment']); // Unsure why topics.deleteTags is not related from src/topics/tags.js
 
 		// Act: Run createNewTag with invalid forum categories (this would need to be simulated in the webserver function)
 		await topics.createNewTag({ forumCategory: 'InvalidCategory' });
