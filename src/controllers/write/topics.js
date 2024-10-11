@@ -100,6 +100,17 @@ Topics.unfollow = async (req, res) => {
 	helpers.formatApiResponse(200, res);
 };
 
+Topics.favorite = async (req, res) => {
+	await api.topics.favorite(req, req.params);
+	helpers.formatApiResponse(200, res);
+};
+
+Topics.unfavorite = async (req, res) => {
+	await api.topics.unfavorite(req, req.params);
+	helpers.formatApiResponse(200, res);
+};
+
+
 Topics.updateTags = async (req, res) => {
 	const payload = await api.topics.updateTags(req, {
 		tid: req.params.tid,

@@ -1,0 +1,53 @@
+put:
+  tags:
+    - topics
+  summary: Add a topic to favorites
+  description: This operation adds the specified topic to the current user's favorites.
+  parameters:
+    - in: path
+      name: tid
+      schema:
+        type: string
+      required: true
+      description: A valid topic ID
+      example: 1
+  responses:
+    '200':
+      description: Topic successfully added to favorites
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                $ref: ../../../components/schemas/Status.yaml#/Status
+              response:
+                type: object
+                properties: {}
+
+delete:
+  tags:
+    - topics
+  summary: Remove a topic from favorites
+  description: This operation removes the specified topic from the current user's favorites.
+  parameters:
+    - in: path
+      name: tid
+      schema:
+        type: string
+      required: true
+      description: A valid topic ID
+      example: 1
+  responses:
+    '200':
+      description: Topic successfully removed from favorites
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                $ref: ../../../components/schemas/Status.yaml#/Status
+              response:
+                type: object
+                properties: {}
