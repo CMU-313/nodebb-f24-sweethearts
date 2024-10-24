@@ -173,6 +173,14 @@ topicsAPI.unfollow = async function (caller, data) {
 	await topics.unfollow(data.tid, caller.uid);
 };
 
+topicsAPI.favorite = async function (caller, data) {
+	await topics.favorite(data.tid, caller.uid);
+};
+
+topicsAPI.unfavorite = async function (caller, data) {
+	await topics.unfavorite(data.tid, caller.uid);
+};
+
 topicsAPI.updateTags = async (caller, { tid, tags }) => {
 	if (!await privileges.topics.canEdit(tid, caller.uid)) {
 		throw new Error('[[error:no-privileges]]');
