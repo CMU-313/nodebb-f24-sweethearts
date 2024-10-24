@@ -2,6 +2,7 @@
 
 const nconf = require('nconf');
 const winston = require('winston');
+const irohMonitor = require('../iroh/iroh-monitor');
 
 const start = module.exports;
 
@@ -9,8 +10,19 @@ const db = require('./database');
 const Topics = require('./topics');
 
 start.start = async function () {
-	printStartupInfo();
+	try {
+		console.log('Initializing Iroh monitoring...');
 
+		// I chose to monitor core nodeBB topic functions (create and reply).
+		Topics.create = irohMonitor.monitorFunction(Topics.create, 'Topics.create');
+		Topics.reply = irohMonitor.monitorFunction(Topics.reply, 'Topics.reply');
+
+		console.log('Iroh monitoring successfully initialized!!');
+	} catch (err) {
+		console.error('Failed to initialize Iroh monitoring:', err);
+	}
+
+	printStartupInfo();
 	addProcessHandlers();
 
 	try {
