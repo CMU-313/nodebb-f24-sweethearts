@@ -1,0 +1,48 @@
+(base) jullia@jullias-air nodebb-f24-sweethearts % node app.js
+2024-10-24T20:01:42.200Z [4567/23174] - info: NodeBB v3.8.4 Copyright (C) 2013-2024 NodeBB Inc.
+2024-10-24T20:01:42.201Z [4567/23174] - info: This program comes with ABSOLUTELY NO WARRANTY.
+2024-10-24T20:01:42.201Z [4567/23174] - info: This is free software, and you are welcome to redistribute it under certain conditions.
+2024-10-24T20:01:42.201Z [4567/23174] - info: 
+Initializing Iroh monitoring...
+Setting up monitoring for Topics.create
+Setting up monitoring for Topics.post
+Setting up monitoring for Topics.reply
+Setting up monitoring for Posts.create
+Setting up monitoring for Posts.edit
+Setting up monitoring for User.create
+Setting up monitoring for User.auth.logAttempt
+NodeBB core functions monitoring initialized
+2024-10-24T20:01:42.758Z [4567/23174] - info: Initializing NodeBB v3.8.4 http://localhost:4567
+(node:23174) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+2024-10-24T20:01:42.962Z [4567/23174] - info: [socket.io] Restricting access to origin: http://localhost:*
+2024-10-24T20:01:43.108Z [4567/23174] - info: [api] Adding 0 route(s) to `api/v3/plugins`
+2024-10-24T20:01:43.110Z [4567/23174] - info: [router] Routes added
+Tag "homework" successfully created!
+Tag "assignment" successfully created!
+2024-10-24T20:01:43.113Z [4567/23174] - info: 🎉 NodeBB Ready
+2024-10-24T20:01:43.113Z [4567/23174] - info: 🤝 Enabling 'trust proxy'
+2024-10-24T20:01:43.114Z [4567/23174] - info: 📡 NodeBB is now listening on: 0.0.0.0:4567
+2024-10-24T20:01:43.114Z [4567/23174] - info: 🔗 Canonical URL: http://localhost:4567
+WARNING: The keyword 'none' must be used as a single argument.
+    ../../../bootstrap/scss/mixins/_box-shadow.scss 10:9   box-shadow()
+    ../../../bootstrap/scss/forms/_form-control.scss 40:7  @import
+    bootstrap/scss/_forms.scss 3:9                         @import
+    - 19:9                                                 root stylesheet
+
+WARNING: The keyword 'none' must be used as a single argument.
+    ../../../bootstrap/scss/mixins/_box-shadow.scss 10:9  box-shadow()
+    ../../../bootstrap/scss/forms/_form-select.scss 32:7  @import
+    bootstrap/scss/_forms.scss 4:9                        @import
+    - 19:9                                                root stylesheet
+
+[START] Topics.post
+[START] Topics.create
+[END] Topics.create took 2.80ms
+[START] Posts.create
+[END] Posts.create took 7.82ms
+[END] Topics.post took 24.96ms
+[START] Topics.reply
+[START] Posts.create
+[END] Posts.create took 4.04ms
+[END] Topics.reply took 12.64ms
