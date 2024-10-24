@@ -85,3 +85,9 @@ jobs:
 
       - name: Test coverage
         uses: coverallsapp/github-action@v2
+      
+      - name: Install StandardJS
+        run: npm install standard --save-dev
+      
+      - name: Run StandardJS
+        run: npx standard
