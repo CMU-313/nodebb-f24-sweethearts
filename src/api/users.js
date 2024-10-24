@@ -34,7 +34,6 @@ usersAPI.create = async function (caller, data) {
 		throw new Error('[[error:invalid-data]]');
 	}
 	await hasAdminPrivilege(caller.uid, 'users');
-
 	const uid = await user.create(data);
 	return await user.getUserData(uid);
 };

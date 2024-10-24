@@ -7,7 +7,7 @@ const utils = require('../utils');
 const intFields = [
 	'uid', 'pid', 'tid', 'deleted', 'timestamp',
 	'upvotes', 'downvotes', 'deleterUid', 'edited',
-	'replies', 'bookmarks',
+	'replies', 'bookmarks', 'anonymous',
 ];
 
 module.exports = function (Posts) {
@@ -42,6 +42,9 @@ module.exports = function (Posts) {
 
 	Posts.getPostFields = async function (pid, fields) {
 		const posts = await Posts.getPostsFields([pid], fields);
+		if (!fields.includes('anonymous')) {
+			fields.push('anonymous');
+		}
 		return posts ? posts[0] : null;
 	};
 

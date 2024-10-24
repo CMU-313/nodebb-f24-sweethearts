@@ -73,7 +73,6 @@ define('forum/topic', [
 		$(window).on('scroll', utils.debounce(updateTopicTitle, 250));
 
 		handleTopicSearch();
-
 		hooks.fire('action:topic.loaded', ajaxify.data);
 	};
 

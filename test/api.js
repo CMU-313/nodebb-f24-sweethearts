@@ -518,7 +518,19 @@ describe('API', async () => {
 						`${method.toUpperCase()} ${path} sent back unexpected HTTP status code: ${result.response.statusCode}`
 					);
 				});
-
+				it('response for get post requests should include anonymous attribute', () => {
+					if (method === 'get' && path.startsWith('/api/v3/posts')) {
+						const http200 = context[method].responses['200'];
+						if (http200 && result.response.statusCode === 200) {
+							const hasJSON = http200.content && http200.content['application/json'];
+							if (hasJSON) {
+								result.body.forEach((post) => {
+									assert(post.hasOwnProperty('anonymous'), "Post should have an 'anonymous' attribute");
+								});
+							}
+						}
+					}
+				});
 				// Recursively iterate through schema properties, comparing type
 				it('response body should match schema definition', () => {
 					const http302 = context[method].responses['302'];
