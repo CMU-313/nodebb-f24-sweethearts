@@ -89,5 +89,5 @@ jobs:
       - name: Install Plato
         uses: npm install -g plato@latest
 
-      - name: Run Plato
-        run: plato -r -d plato-report src
+      # - name: Run Plato
+      #   run: plato -r -d plato-report src
