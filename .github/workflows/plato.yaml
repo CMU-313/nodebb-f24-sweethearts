@@ -27,5 +27,5 @@ jobs:
         run: npm install -g plato@latest
 
       - name: Run Plato
-        run: plato -r -d plato-report src
+        run: rm -rf plato-report && plato -r -d plato-report **/*.js
 
