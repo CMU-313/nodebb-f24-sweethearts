@@ -90,4 +90,4 @@ jobs:
         uses: npm install -g plato@latest
 
       - name: Run Plato
-        run: plato **/*.js --report plato-report
+        run: plato -r -d plato-report src
