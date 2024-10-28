@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - test/api.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>test/api.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">60.56</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">671</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">64.67</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">8.82</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+const _ = require(&#039;lodash&#039;);
+const assert = require(&#039;assert&#039;);
+const path = require(&#039;path&#039;);
+const fs = require(&#039;fs&#039;);
+const SwaggerParser = require(&#039;@apidevtools/swagger-parser&#039;);
+const nconf = require(&#039;nconf&#039;);
+const jwt = require(&#039;jsonwebtoken&#039;);
+const util = require(&#039;util&#039;);
+
+const wait = util.promisify(setTimeout);
+
+const request = require(&#039;../src/request&#039;);
+const db = require(&#039;./mocks/databasemock&#039;);
+const helpers = require(&#039;./helpers&#039;);
+const meta = require(&#039;../src/meta&#039;);
+const user = require(&#039;../src/user&#039;);
+const groups = require(&#039;../src/groups&#039;);
+const categories = require(&#039;../src/categories&#039;);
+const topics = require(&#039;../src/topics&#039;);
+const posts = require(&#039;../src/posts&#039;);
+const plugins = require(&#039;../src/plugins&#039;);
+const flags = require(&#039;../src/flags&#039;);
+const messaging = require(&#039;../src/messaging&#039;);
+const utils = require(&#039;../src/utils&#039;);
+const api = require(&#039;../src/api&#039;);
+
+describe(&#039;API&#039;, async () =&gt; {
+	let readApi = false;
+	let writeApi = false;
+	const readApiPath = path.resolve(__dirname, &#039;../public/openapi/read.yaml&#039;);
+	const writeApiPath = path.resolve(__dirname, &#039;../public/openapi/write.yaml&#039;);
+	let jar;
+	let csrfToken;
+	let setup = false;
+	const unauthenticatedRoutes = [&#039;/api/login&#039;, &#039;/api/register&#039;]; // Everything else will be called with the admin user
+
+	const mocks = {
+		head: {},
+		get: {
+			&#039;/api/email/unsubscribe/{token}&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;token&#039;,
+					example: (() =&gt; jwt.sign({
+						template: &#039;digest&#039;,
+						uid: 1,
+					}, nconf.get(&#039;secret&#039;)))(),
+				},
+			],
+			&#039;/api/confirm/{code}&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;code&#039;,
+					example: &#039;&#039;, // to be defined later...
+				},
+			],
+			&#039;/admin/tokens/{token}&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;token&#039;,
+					example: &#039;&#039;, // to be defined later...
+				},
+			],
+		},
+		post: {
+			&#039;/admin/tokens/{token}/roll&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;token&#039;,
+					example: &#039;&#039;, // to be defined later...
+				},
+			],
+		},
+		put: {
+			&#039;/groups/{slug}/pending/{uid}&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;slug&#039;,
+					example: &#039;private-group&#039;,
+				},
+				{
+					in: &#039;path&#039;,
+					name: &#039;uid&#039;,
+					example: &#039;&#039;, // to be defined later...
+				},
+			],
+			&#039;/admin/tokens/{token}&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;token&#039;,
+					example: &#039;&#039;, // to be defined later...
+				},
+			],
+		},
+		patch: {},
+		delete: {
+			&#039;/users/{uid}/tokens/{token}&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;uid&#039;,
+					example: 1,
+				},
+				{
+					in: &#039;path&#039;,
+					name: &#039;token&#039;,
+					example: utils.generateUUID(),
+				},
+			],
+			&#039;/users/{uid}/sessions/{uuid}&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;uid&#039;,
+					example: 1,
+				},
+				{
+					in: &#039;path&#039;,
+					name: &#039;uuid&#039;,
+					example: &#039;&#039;, // to be defined below...
+				},
+			],
+			&#039;/posts/{pid}/diffs/{timestamp}&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;pid&#039;,
+					example: &#039;&#039;, // to be defined below...
+				},
+				{
+					in: &#039;path&#039;,
+					name: &#039;timestamp&#039;,
+					example: &#039;&#039;, // to be defined below...
+				},
+			],
+			&#039;/groups/{slug}/pending/{uid}&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;slug&#039;,
+					example: &#039;private-group&#039;,
+				},
+				{
+					in: &#039;path&#039;,
+					name: &#039;uid&#039;,
+					example: &#039;&#039;, // to be defined later...
+				},
+			],
+			&#039;/groups/{slug}/invites/{uid}&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;slug&#039;,
+					example: &#039;invitations-only&#039;,
+				},
+				{
+					in: &#039;path&#039;,
+					name: &#039;uid&#039;,
+					example: &#039;&#039;, // to be defined later...
+				},
+			],
+			&#039;/admin/tokens/{token}&#039;: [
+				{
+					in: &#039;path&#039;,
+					name: &#039;token&#039;,
+					example: &#039;&#039;, // to be defined later...
+				},
+			],
+		},
+	};
+
+	async function dummySearchHook(data) {
+		return [1];
+	}
+	async function dummyEmailerHook(data) {
+		// pretend to handle sending emails
+	}
+
+	after(async () =&gt; {
+		plugins.hooks.unregister(&#039;core&#039;, &#039;filter:search.query&#039;, dummySearchHook);
+		plugins.hooks.unregister(&#039;emailer-test&#039;, &#039;static:email.send&#039;);
+	});
+
+	async function setupData() {
+		if (setup) {
+			return;
+		}
+
+		// Create sample users
+		const adminUid = await user.create({ username: &#039;admin&#039;, password: &#039;123456&#039; });
+		const unprivUid = await user.create({ username: &#039;unpriv&#039;, password: &#039;123456&#039; });
+		const emailConfirmationUid = await user.create({ username: &#039;emailConf&#039;, email: &#039;emailConf@example.org&#039; });
+		await user.setUserField(adminUid, &#039;email&#039;, &#039;test@example.org&#039;);
+		await user.setUserField(unprivUid, &#039;email&#039;, &#039;unpriv@example.org&#039;);
+		await user.email.confirmByUid(adminUid);
+		await user.email.confirmByUid(unprivUid);
+		mocks.get[&#039;/api/confirm/{code}&#039;][0].example = await db.get(`confirm:byUid:${emailConfirmationUid}`);
+
+		for (let x = 0; x &lt; 4; x++) {
+			// eslint-disable-next-line no-await-in-loop
+			await user.create({ username: &#039;deleteme&#039;, password: &#039;123456&#039; }); // for testing of DELETE /users (uids 5, 6) and DELETE /user/:uid/account (uid 7)
+		}
+		await groups.join(&#039;administrators&#039;, adminUid);
+
+		// Create api token for testing read/updating/deletion
+		const token = await api.utils.tokens.generate({ uid: adminUid });
+		mocks.get[&#039;/admin/tokens/{token}&#039;][0].example = token;
+		mocks.put[&#039;/admin/tokens/{token}&#039;][0].example = token;
+		mocks.delete[&#039;/admin/tokens/{token}&#039;][0].example = token;
+
+		// Create another token for testing rolling
+		const token2 = await api.utils.tokens.generate({ uid: adminUid });
+		mocks.post[&#039;/admin/tokens/{token}/roll&#039;][0].example = token2;
+
+		// Create sample group
+		await groups.create({
+			name: &#039;Test Group&#039;,
+		});
+
+		// Create private groups for pending/invitations
+		const [pending1, pending2, inviteUid] = await Promise.all([
+			await user.create({ username: utils.generateUUID().slice(0, 8) }),
+			await user.create({ username: utils.generateUUID().slice(0, 8) }),
+			await user.create({ username: utils.generateUUID().slice(0, 8) }),
+		]);
+		mocks.put[&#039;/groups/{slug}/pending/{uid}&#039;][1].example = pending1;
+		mocks.delete[&#039;/groups/{slug}/pending/{uid}&#039;][1].example = pending2;
+		mocks.delete[&#039;/groups/{slug}/invites/{uid}&#039;][1].example = inviteUid;
+		await Promise.all([&#039;private-group&#039;, &#039;invitations-only&#039;].map(async (name) =&gt; {
+			await groups.create({ name, private: true });
+		}));
+		await groups.requestMembership(&#039;private-group&#039;, pending1);
+		await groups.requestMembership(&#039;private-group&#039;, pending2);
+		await groups.invite(&#039;invitations-only&#039;, inviteUid);
+
+		await meta.settings.set(&#039;core.api&#039;, {
+			tokens: [{
+				token: mocks.delete[&#039;/users/{uid}/tokens/{token}&#039;][1].example,
+				uid: 1,
+				description: &#039;for testing of token deletion route&#039;,
+				timestamp: Date.now(),
+			}],
+		});
+		meta.config.allowTopicsThumbnail = 1;
+		meta.config.termsOfUse = &#039;I, for one, welcome our new test-driven overlords&#039;;
+		meta.config.chatMessageDelay = 0;
+
+		// Create a category
+		const testCategory = await categories.create({ name: &#039;test&#039; });
+
+		// Post a new topic
+		await topics.post({
+			uid: adminUid,
+			cid: testCategory.cid,
+			title: &#039;Test Topic&#039;,
+			content: &#039;Test topic content&#039;,
+		});
+		const unprivTopic = await topics.post({
+			uid: unprivUid,
+			cid: testCategory.cid,
+			title: &#039;Test Topic 2&#039;,
+			content: &#039;Test topic 2 content&#039;,
+		});
+		await topics.post({
+			uid: unprivUid,
+			cid: testCategory.cid,
+			title: &#039;Test Topic 3&#039;,
+			content: &#039;Test topic 3 content&#039;,
+		});
+
+		// Create a post diff
+		await posts.edit({
+			uid: adminUid,
+			pid: unprivTopic.postData.pid,
+			content: &#039;Test topic 2 edited content&#039;,
+			req: {},
+		});
+		mocks.delete[&#039;/posts/{pid}/diffs/{timestamp}&#039;][0].example = unprivTopic.postData.pid;
+		mocks.delete[&#039;/posts/{pid}/diffs/{timestamp}&#039;][1].example = (await posts.diffs.list(unprivTopic.postData.pid))[0];
+
+		// Create a sample flag
+		const { flagId } = await flags.create(&#039;post&#039;, 1, unprivUid, &#039;sample reasons&#039;, Date.now()); // deleted in DELETE /api/v3/flags/1
+		await flags.appendNote(flagId, 1, &#039;test note&#039;, 1626446956652);
+		await flags.create(&#039;post&#039;, 2, unprivUid, &#039;sample reasons&#039;, Date.now()); // for testing flag notes (since flag 1 deleted)
+
+		// Create a new chat room
+		await messaging.newRoom(adminUid, { uids: [unprivUid] });
+
+		// Create an empty file to test DELETE /files and thumb deletion
+		fs.closeSync(fs.openSync(path.resolve(nconf.get(&#039;upload_path&#039;), &#039;files/test.txt&#039;), &#039;w&#039;));
+		fs.closeSync(fs.openSync(path.resolve(nconf.get(&#039;upload_path&#039;), &#039;files/test.png&#039;), &#039;w&#039;));
+
+		// Associate thumb with topic to test thumb reordering
+		await topics.thumbs.associate({
+			id: 2,
+			path: &#039;files/test.png&#039;,
+		});
+
+		const socketAdmin = require(&#039;../src/socket.io/admin&#039;);
+		await Promise.all([&#039;profile&#039;, &#039;posts&#039;, &#039;uploads&#039;].map(async type =&gt; api.users.generateExport({ uid: adminUid }, { uid: adminUid, type })));
+		await socketAdmin.user.exportUsersCSV({ uid: adminUid }, {});
+		// wait for export child processes to complete
+		await wait(5000);
+
+		// Attach a search hook so /api/search is enabled
+		plugins.hooks.register(&#039;core&#039;, {
+			hook: &#039;filter:search.query&#039;,
+			method: dummySearchHook,
+		});
+		// Attach an emailer hook so related requests do not error
+		plugins.hooks.register(&#039;emailer-test&#039;, {
+			hook: &#039;static:email.send&#039;,
+			method: dummyEmailerHook,
+		});
+
+		// All tests run as admin user
+		({ jar } = await helpers.loginUser(&#039;admin&#039;, &#039;123456&#039;));
+
+		// Retrieve CSRF token using cookie, to test Write API
+		csrfToken = await helpers.getCsrfToken(jar);
+
+		setup = true;
+	}
+
+	it(&#039;should pass OpenAPI v3 validation&#039;, async () =&gt; {
+		try {
+			await SwaggerParser.validate(readApiPath);
+			await SwaggerParser.validate(writeApiPath);
+		} catch (e) {
+			assert.ifError(e);
+		}
+	});
+
+	readApi = await SwaggerParser.dereference(readApiPath);
+	writeApi = await SwaggerParser.dereference(writeApiPath);
+
+	it(&#039;should grab all mounted routes and ensure a schema exists&#039;, async () =&gt; {
+		const webserver = require(&#039;../src/webserver&#039;);
+		const buildPaths = function (stack, prefix) {
+			const paths = stack.map((dispatch) =&gt; {
+				if (dispatch.route &amp;&amp; dispatch.route.path &amp;&amp; typeof dispatch.route.path === &#039;string&#039;) {
+					if (!prefix &amp;&amp; !dispatch.route.path.startsWith(&#039;/api/&#039;)) {
+						return null;
+					}
+
+					if (prefix === nconf.get(&#039;relative_path&#039;)) {
+						prefix = &#039;&#039;;
+					}
+
+					return {
+						method: Object.keys(dispatch.route.methods)[0],
+						path: (prefix || &#039;&#039;) + dispatch.route.path,
+					};
+				} else if (dispatch.name === &#039;router&#039;) {
+					const prefix = dispatch.regexp.toString().replace(&#039;/^&#039;, &#039;&#039;).replace(&#039;\\/?(?=\\/|$)/i&#039;, &#039;&#039;).replace(/\\\//g, &#039;/&#039;);
+					return buildPaths(dispatch.handle.stack, prefix);
+				}
+
+				// Drop any that aren&#039;t actual routes (middlewares, error handlers, etc.)
+				return null;
+			});
+
+			return _.flatten(paths);
+		};
+
+		let paths = buildPaths(webserver.app._router.stack).filter(Boolean).map((pathObj) =&gt; {
+			pathObj.path = pathObj.path.replace(/\/:([^\\/]+)/g, &#039;/{$1}&#039;);
+			return pathObj;
+		});
+		const exclusionPrefixes = [
+			&#039;/api/admin/plugins&#039;, &#039;/api/compose&#039;, &#039;/debug&#039;,
+			&#039;/api/user/{userslug}/theme&#039;, // from persona
+		];
+		paths = paths.filter(path =&gt; path.method !== &#039;_all&#039; &amp;&amp; !exclusionPrefixes.some(prefix =&gt; path.path.startsWith(prefix)));
+
+
+		// For each express path, query for existence in read and write api schemas
+		paths.forEach((pathObj) =&gt; {
+			describe(`${pathObj.method.toUpperCase()} ${pathObj.path}`, () =&gt; {
+				it(&#039;should be defined in schema docs&#039;, () =&gt; {
+					let schema = readApi;
+					if (pathObj.path.startsWith(&#039;/api/v3&#039;)) {
+						schema = writeApi;
+						pathObj.path = pathObj.path.replace(&#039;/api/v3&#039;, &#039;&#039;);
+					}
+
+					// Don&#039;t check non-GET routes in Read API
+					if (schema === readApi &amp;&amp; pathObj.method !== &#039;get&#039;) {
+						return;
+					}
+
+					const normalizedPath = pathObj.path.replace(/\/:([^\\/]+)/g, &#039;/{$1}&#039;).replace(/\?/g, &#039;&#039;);
+					assert(schema.paths.hasOwnProperty(normalizedPath), `${pathObj.path} is not defined in schema docs`);
+					assert(schema.paths[normalizedPath].hasOwnProperty(pathObj.method), `${pathObj.path} was found in schema docs, but ${pathObj.method.toUpperCase()} method is not defined`);
+				});
+			});
+		});
+	});
+
+	generateTests(readApi, Object.keys(readApi.paths));
+	generateTests(writeApi, Object.keys(writeApi.paths), writeApi.servers[0].url);
+
+	function generateTests(api, paths, prefix) {
+		// Iterate through all documented paths, make a call to it,
+		// and compare the result body with what is defined in the spec
+		const pathLib = path; // for calling path module from inside this forEach
+		paths.forEach((path) =&gt; {
+			const context = api.paths[path];
+			let schema;
+			let result;
+			let url;
+			let method;
+			const headers = {};
+			const qs = {};
+
+			Object.keys(context).forEach((_method) =&gt; {
+				// Only test GET routes in the Read API
+				if (api.info.title === &#039;NodeBB Read API&#039; &amp;&amp; _method !== &#039;get&#039;) {
+					return;
+				}
+
+				it(&#039;should have each path parameter defined in its context&#039;, () =&gt; {
+					method = _method;
+					if (!context[method].parameters) {
+						return;
+					}
+
+					const pathParams = (path.match(/{[\w\-_*]+}?/g) || []).map(match =&gt; match.slice(1, -1));
+					const schemaParams = context[method].parameters.map(param =&gt; (param.in === &#039;path&#039; ? param.name : null)).filter(Boolean);
+					assert(pathParams.every(param =&gt; schemaParams.includes(param)), `${method.toUpperCase()} ${path} has path parameters specified but not defined`);
+				});
+
+				it(&#039;should have examples when parameters are present&#039;, () =&gt; {
+					let { parameters } = context[method];
+					let testPath = path;
+
+					if (parameters) {
+						// Use mock data if provided
+						parameters = mocks[method][path] || parameters;
+
+						parameters.forEach((param) =&gt; {
+							assert(param.example !== null &amp;&amp; param.example !== undefined, `${method.toUpperCase()} ${path} has parameters without examples`);
+
+							switch (param.in) {
+								case &#039;path&#039;:
+									testPath = testPath.replace(`{${param.name}}`, param.example);
+									break;
+								case &#039;header&#039;:
+									headers[param.name] = param.example;
+									break;
+								case &#039;query&#039;:
+									qs[param.name] = param.example;
+									break;
+							}
+						});
+					}
+
+					url = nconf.get(&#039;url&#039;) + (prefix || &#039;&#039;) + testPath;
+				});
+
+				it(&#039;should contain a valid request body (if present) with application/json or multipart/form-data type if POST/PUT/DELETE&#039;, () =&gt; {
+					if ([&#039;post&#039;, &#039;put&#039;, &#039;delete&#039;].includes(method) &amp;&amp; context[method].hasOwnProperty(&#039;requestBody&#039;)) {
+						const failMessage = `${method.toUpperCase()} ${path} has a malformed request body`;
+						assert(context[method].requestBody, failMessage);
+						assert(context[method].requestBody.content, failMessage);
+
+						if (context[method].requestBody.content.hasOwnProperty(&#039;application/json&#039;)) {
+							assert(context[method].requestBody.content[&#039;application/json&#039;], failMessage);
+							assert(context[method].requestBody.content[&#039;application/json&#039;].schema, failMessage);
+							assert(context[method].requestBody.content[&#039;application/json&#039;].schema.properties, failMessage);
+						} else if (context[method].requestBody.content.hasOwnProperty(&#039;multipart/form-data&#039;)) {
+							assert(context[method].requestBody.content[&#039;multipart/form-data&#039;], failMessage);
+							assert(context[method].requestBody.content[&#039;multipart/form-data&#039;].schema, failMessage);
+							assert(context[method].requestBody.content[&#039;multipart/form-data&#039;].schema.properties, failMessage);
+						}
+					}
+				});
+
+				it(&#039;should not error out when called&#039;, async () =&gt; {
+					await setupData();
+
+					if (csrfToken) {
+						headers[&#039;x-csrf-token&#039;] = csrfToken;
+					}
+
+					let body = {};
+					let type = &#039;json&#039;;
+					if (
+						context[method].hasOwnProperty(&#039;requestBody&#039;) &amp;&amp;
+						context[method].requestBody.required !== false &amp;&amp;
+						context[method].requestBody.content[&#039;application/json&#039;]) {
+						body = buildBody(context[method].requestBody.content[&#039;application/json&#039;].schema.properties);
+					} else if (context[method].hasOwnProperty(&#039;requestBody&#039;) &amp;&amp; context[method].requestBody.content[&#039;multipart/form-data&#039;]) {
+						type = &#039;form&#039;;
+					}
+
+					try {
+						if (type === &#039;json&#039;) {
+							const searchParams = new URLSearchParams(qs);
+							result = await request[method](`${url}?${searchParams}`, {
+								jar: !unauthenticatedRoutes.includes(path) ? jar : undefined,
+								maxRedirect: 0,
+								redirect: &#039;manual&#039;,
+								headers: headers,
+								body: body,
+							});
+						} else if (type === &#039;form&#039;) {
+							result = await helpers.uploadFile(url, pathLib.join(__dirname, &#039;./files/test.png&#039;), {}, jar, csrfToken);
+						}
+					} catch (e) {
+						assert(!e, `${method.toUpperCase()} ${path} errored with: ${e.message}`);
+					}
+				});
+
+				it(&#039;response status code should match one of the schema defined responses&#039;, () =&gt; {
+					// HACK: allow HTTP 418 I am a teapot, for now   👇
+					const { responses } = context[method];
+					assert(
+						responses.hasOwnProperty(&#039;418&#039;) ||
+						Object.keys(responses).includes(String(result.response.statusCode)),
+						`${method.toUpperCase()} ${path} sent back unexpected HTTP status code: ${result.response.statusCode}`
+					);
+				});
+
+				// Recursively iterate through schema properties, comparing type
+				it(&#039;response body should match schema definition&#039;, () =&gt; {
+					const http302 = context[method].responses[&#039;302&#039;];
+					if (http302 &amp;&amp; result.response.statusCode === 302) {
+						// Compare headers instead
+						const expectedHeaders = Object.keys(http302.headers).reduce((memo, name) =&gt; {
+							const value = http302.headers[name].schema.example;
+							memo[name] = value.startsWith(nconf.get(&#039;relative_path&#039;)) ? value : nconf.get(&#039;relative_path&#039;) + value;
+							return memo;
+						}, {});
+
+						for (const header of Object.keys(expectedHeaders)) {
+							assert(result.response.headers[header.toLowerCase()]);
+							assert.strictEqual(result.response.headers[header.toLowerCase()], expectedHeaders[header]);
+						}
+						return;
+					}
+
+					if (result.response.statusCode === 400 &amp;&amp; context[method].responses[&#039;400&#039;]) {
+						// TODO: check 400 schema to response.body?
+						return;
+					}
+
+					const http200 = context[method].responses[&#039;200&#039;];
+					if (!http200) {
+						return;
+					}
+
+					assert.strictEqual(result.response.statusCode, 200, `HTTP 200 expected (path: ${method} ${path}`);
+
+					const hasJSON = http200.content &amp;&amp; http200.content[&#039;application/json&#039;];
+					if (hasJSON) {
+						schema = context[method].responses[&#039;200&#039;].content[&#039;application/json&#039;].schema;
+						compare(schema, result.body, method.toUpperCase(), path, &#039;root&#039;);
+					}
+
+					// TODO someday: text/csv, binary file type checking?
+				});
+
+				it(&#039;should successfully re-login if needed&#039;, async () =&gt; {
+					const reloginPaths = [&#039;GET /api/user/{userslug}/edit/email&#039;, &#039;PUT /users/{uid}/password&#039;, &#039;DELETE /users/{uid}/sessions/{uuid}&#039;];
+					if (reloginPaths.includes(`${method.toUpperCase()} ${path}`)) {
+						({ jar } = await helpers.loginUser(&#039;admin&#039;, &#039;123456&#039;));
+						const sessionIds = await db.getSortedSetRange(&#039;uid:1:sessions&#039;, 0, -1);
+						const sessObj = await db.sessionStoreGet(sessionIds[0]);
+						const { uuid } = sessObj.meta;
+						mocks.delete[&#039;/users/{uid}/sessions/{uuid}&#039;][1].example = uuid;
+
+						// Retrieve CSRF token using cookie, to test Write API
+						csrfToken = await helpers.getCsrfToken(jar);
+					}
+				});
+			});
+		});
+	}
+
+	function buildBody(schema) {
+		return Object.keys(schema).reduce((memo, cur) =&gt; {
+			memo[cur] = schema[cur].example;
+			return memo;
+		}, {});
+	}
+
+	function compare(schema, response, method, path, context) {
+		let required = [];
+		const additionalProperties = schema.hasOwnProperty(&#039;additionalProperties&#039;);
+
+		function flattenAllOf(obj) {
+			return obj.reduce((memo, obj) =&gt; {
+				if (obj.allOf) {
+					obj = { properties: flattenAllOf(obj.allOf) };
+				} else {
+					try {
+						required = required.concat(obj.required ? obj.required : Object.keys(obj.properties));
+					} catch (e) {
+						assert.fail(`Syntax error re: allOf, perhaps you allOf&#039;d an array? (path: ${method} ${path}, context: ${context})`);
+					}
+				}
+
+				return { ...memo, ...obj.properties };
+			}, {});
+		}
+
+		if (schema.allOf) {
+			schema = flattenAllOf(schema.allOf);
+		} else if (schema.properties) {
+			required = schema.required || Object.keys(schema.properties);
+			schema = schema.properties;
+		} else {
+			// If schema contains no properties, check passes
+			return;
+		}
+
+		// Compare the schema to the response
+		required.forEach((prop) =&gt; {
+			if (schema.hasOwnProperty(prop)) {
+				assert(response.hasOwnProperty(prop), `&quot;${prop}&quot; is a required property (path: ${method} ${path}, context: ${context})`);
+
+				// Don&#039;t proceed with type-check if the value could possibly be unset (nullable: true, in spec)
+				if (response[prop] === null &amp;&amp; schema[prop].nullable === true) {
+					return;
+				}
+
+				// Therefore, if the value is actually null, that&#039;s a problem (nullable is probably missing)
+				assert(response[prop] !== null, `&quot;${prop}&quot; was null, but schema does not specify it to be a nullable property (path: ${method} ${path}, context: ${context})`);
+
+				switch (schema[prop].type) {
+					case &#039;string&#039;:
+						assert.strictEqual(typeof response[prop], &#039;string&#039;, `&quot;${prop}&quot; was expected to be a string, but was ${typeof response[prop]} instead (path: ${method} ${path}, context: ${context})`);
+						break;
+					case &#039;boolean&#039;:
+						assert.strictEqual(typeof response[prop], &#039;boolean&#039;, `&quot;${prop}&quot; was expected to be a boolean, but was ${typeof response[prop]} instead (path: ${method} ${path}, context: ${context})`);
+						break;
+					case &#039;object&#039;:
+						assert.strictEqual(typeof response[prop], &#039;object&#039;, `&quot;${prop}&quot; was expected to be an object, but was ${typeof response[prop]} instead (path: ${method} ${path}, context: ${context})`);
+						compare(schema[prop], response[prop], method, path, context ? [context, prop].join(&#039;.&#039;) : prop);
+						break;
+					case &#039;array&#039;:
+						assert.strictEqual(Array.isArray(response[prop]), true, `&quot;${prop}&quot; was expected to be an array, but was ${typeof response[prop]} instead (path: ${method} ${path}, context: ${context})`);
+
+						if (schema[prop].items) {
+							// Ensure the array items have a schema defined
+							assert(schema[prop].items.type || schema[prop].items.allOf || schema[prop].items.anyOf || schema[prop].items.oneOf, `&quot;${prop}&quot; is defined to be an array, but its items have no schema defined (path: ${method} ${path}, context: ${context})`);
+
+							// Compare types
+							if (schema[prop].items.type === &#039;object&#039; || Array.isArray(schema[prop].items.allOf || schema[prop].items.anyOf || schema[prop].items.oneOf)) {
+								response[prop].forEach((res) =&gt; {
+									compare(schema[prop].items, res, method, path, context ? [context, prop].join(&#039;.&#039;) : prop);
+								});
+							} else if (response[prop].length) { // for now
+								response[prop].forEach((item) =&gt; {
+									assert.strictEqual(typeof item, schema[prop].items.type, `&quot;${prop}&quot; should have ${schema[prop].items.type} items, but found ${typeof items} instead (path: ${method} ${path}, context: ${context})`);
+								});
+							}
+						}
+						break;
+				}
+			}
+		});
+
+		// Compare the response to the schema
+		Object.keys(response).forEach((prop) =&gt; {
+			if (additionalProperties) { // All bets are off
+				return;
+			}
+
+			assert(schema[prop], `&quot;${prop}&quot; was found in response, but is not defined in schema (path: ${method} ${path}, context: ${context})`);
+		});
+	}
+});</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

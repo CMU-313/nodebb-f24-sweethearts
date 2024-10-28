@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - test/posts.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>test/posts.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">68.13</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">1217</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">68.11</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">18.56</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+
+const assert = require(&#039;assert&#039;);
+
+const nconf = require(&#039;nconf&#039;);
+const path = require(&#039;path&#039;);
+const util = require(&#039;util&#039;);
+
+const sleep = util.promisify(setTimeout);
+
+const db = require(&#039;./mocks/databasemock&#039;);
+const topics = require(&#039;../src/topics&#039;);
+const posts = require(&#039;../src/posts&#039;);
+const categories = require(&#039;../src/categories&#039;);
+const privileges = require(&#039;../src/privileges&#039;);
+const user = require(&#039;../src/user&#039;);
+const groups = require(&#039;../src/groups&#039;);
+const socketPosts = require(&#039;../src/socket.io/posts&#039;);
+const apiPosts = require(&#039;../src/api/posts&#039;);
+const apiTopics = require(&#039;../src/api/topics&#039;);
+const meta = require(&#039;../src/meta&#039;);
+const file = require(&#039;../src/file&#039;);
+const helpers = require(&#039;./helpers&#039;);
+const utils = require(&#039;../src/utils&#039;);
+const request = require(&#039;../src/request&#039;);
+
+describe(&#039;Post\&#039;s&#039;, () =&gt; {
+	let voterUid;
+	let voteeUid;
+	let globalModUid;
+	let postData;
+	let topicData;
+	let cid;
+
+	before(async () =&gt; {
+		voterUid = await user.create({ username: &#039;upvoter&#039; });
+		voteeUid = await user.create({ username: &#039;upvotee&#039; });
+		globalModUid = await user.create({ username: &#039;globalmod&#039;, password: &#039;globalmodpwd&#039; });
+		({ cid } = await categories.create({
+			name: &#039;Test Category&#039;,
+			description: &#039;Test category created by testing script&#039;,
+		}));
+
+		({ topicData, postData } = await topics.post({
+			uid: voteeUid,
+			cid: cid,
+			title: &#039;Test Topic Title&#039;,
+			content: &#039;The content of test topic&#039;,
+		}));
+		await groups.join(&#039;Global Moderators&#039;, globalModUid);
+	});
+
+	it(&#039;should update category teaser properly&#039;, async () =&gt; {
+		const getCategoriesAsync = async () =&gt; (await request.get(`${nconf.get(&#039;url&#039;)}/api/categories`, { })).body;
+		const postResult = await topics.post({ uid: globalModUid, cid: cid, title: &#039;topic title&#039;, content: &#039;123456789&#039; });
+
+		let data = await getCategoriesAsync();
+		assert.equal(data.categories[0].teaser.pid, postResult.postData.pid);
+		assert.equal(data.categories[0].posts[0].content, &#039;123456789&#039;);
+		assert.equal(data.categories[0].posts[0].pid, postResult.postData.pid);
+
+		const newUid = await user.create({ username: &#039;teaserdelete&#039; });
+		const newPostResult = await topics.post({ uid: newUid, cid: cid, title: &#039;topic title&#039;, content: &#039;xxxxxxxx&#039; });
+
+		data = await getCategoriesAsync();
+		assert.equal(data.categories[0].teaser.pid, newPostResult.postData.pid);
+		assert.equal(data.categories[0].posts[0].content, &#039;xxxxxxxx&#039;);
+		assert.equal(data.categories[0].posts[0].pid, newPostResult.postData.pid);
+
+		await user.delete(1, newUid);
+
+		data = await getCategoriesAsync();
+		assert.equal(data.categories[0].teaser.pid, postResult.postData.pid);
+		assert.equal(data.categories[0].posts[0].content, &#039;123456789&#039;);
+		assert.equal(data.categories[0].posts[0].pid, postResult.postData.pid);
+	});
+
+	it(&#039;should change owner of post and topic properly&#039;, async () =&gt; {
+		const oldUid = await user.create({ username: &#039;olduser&#039; });
+		const newUid = await user.create({ username: &#039;newuser&#039; });
+		const postResult = await topics.post({ uid: oldUid, cid: cid, title: &#039;change owner&#039;, content: &#039;original post&#039; });
+		const postData = await topics.reply({ uid: oldUid, tid: postResult.topicData.tid, content: &#039;firstReply&#039; });
+		const pid1 = postResult.postData.pid;
+		const pid2 = postData.pid;
+
+		assert.deepStrictEqual(await db.sortedSetScores(`tid:${postResult.topicData.tid}:posters`, [oldUid, newUid]), [2, null]);
+
+		await posts.changeOwner([pid1, pid2], newUid);
+
+		assert.deepStrictEqual(await db.sortedSetScores(`tid:${postResult.topicData.tid}:posters`, [oldUid, newUid]), [null, 2]);
+
+		assert.deepStrictEqual(await posts.isOwner([pid1, pid2], oldUid), [false, false]);
+		assert.deepStrictEqual(await posts.isOwner([pid1, pid2], newUid), [true, true]);
+
+		assert.strictEqual(await user.getUserField(oldUid, &#039;postcount&#039;), 0);
+		assert.strictEqual(await user.getUserField(newUid, &#039;postcount&#039;), 2);
+
+		assert.strictEqual(await user.getUserField(oldUid, &#039;topiccount&#039;), 0);
+		assert.strictEqual(await user.getUserField(newUid, &#039;topiccount&#039;), 1);
+
+		assert.strictEqual(await db.sortedSetScore(&#039;users:postcount&#039;, oldUid), 0);
+		assert.strictEqual(await db.sortedSetScore(&#039;users:postcount&#039;, newUid), 2);
+
+		assert.strictEqual(await topics.isOwner(postResult.topicData.tid, oldUid), false);
+		assert.strictEqual(await topics.isOwner(postResult.topicData.tid, newUid), true);
+
+		assert.strictEqual(await topics.getTopicField(postResult.topicData.tid, &#039;postercount&#039;), 1);
+	});
+
+	it(&#039;should fail to change owner if new owner does not exist&#039;, async () =&gt; {
+		try {
+			await posts.changeOwner([1], &#039;9999999&#039;);
+		} catch (err) {
+			assert.strictEqual(err.message, &#039;[[error:no-user]]&#039;);
+		}
+	});
+
+	it(&#039;should fail to change owner if user is not authorized&#039;, async () =&gt; {
+		try {
+			await socketPosts.changeOwner({ uid: voterUid }, { pids: [1, 2], toUid: voterUid });
+		} catch (err) {
+			assert.strictEqual(err.message, &#039;[[error:no-privileges]]&#039;);
+		}
+	});
+
+	it(&#039;should return falsy if post does not exist&#039;, (done) =&gt; {
+		posts.getPostData(9999, (err, postData) =&gt; {
+			assert.ifError(err);
+			assert.equal(postData, null);
+			done();
+		});
+	});
+
+	describe(&#039;voting&#039;, () =&gt; {
+		it(&#039;should fail to upvote post if group does not have upvote permission&#039;, async () =&gt; {
+			await privileges.categories.rescind([&#039;groups:posts:upvote&#039;, &#039;groups:posts:downvote&#039;], cid, &#039;registered-users&#039;);
+			let err;
+			try {
+				await apiPosts.upvote({ uid: voterUid }, { pid: postData.pid, room_id: &#039;topic_1&#039; });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+			try {
+				await apiPosts.downvote({ uid: voterUid }, { pid: postData.pid, room_id: &#039;topic_1&#039; });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+			await privileges.categories.give([&#039;groups:posts:upvote&#039;, &#039;groups:posts:downvote&#039;], cid, &#039;registered-users&#039;);
+		});
+
+		it(&#039;should upvote a post&#039;, async () =&gt; {
+			const result = await apiPosts.upvote({ uid: voterUid }, { pid: postData.pid, room_id: &#039;topic_1&#039; });
+			assert.equal(result.post.upvotes, 1);
+			assert.equal(result.post.downvotes, 0);
+			assert.equal(result.post.votes, 1);
+			assert.equal(result.user.reputation, 1);
+			const data = await posts.hasVoted(postData.pid, voterUid);
+			assert.equal(data.upvoted, true);
+			assert.equal(data.downvoted, false);
+		});
+
+		it(&#039;should add the pid to the :votes sorted set for that user&#039;, async () =&gt; {
+			const cid = await posts.getCidByPid(postData.pid);
+			const { uid, pid } = postData;
+
+			const score = await db.sortedSetScore(`cid:${cid}:uid:${uid}:pids:votes`, pid);
+			assert.strictEqual(score, 1);
+		});
+
+		it(&#039;should get voters&#039;, (done) =&gt; {
+			socketPosts.getVoters({ uid: globalModUid }, { pid: postData.pid, cid: cid }, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.equal(data.upvoteCount, 1);
+				assert.equal(data.downvoteCount, 0);
+				assert(Array.isArray(data.upvoters));
+				assert.equal(data.upvoters[0].username, &#039;upvoter&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should get upvoters&#039;, (done) =&gt; {
+			socketPosts.getUpvoters({ uid: globalModUid }, [postData.pid], (err, data) =&gt; {
+				assert.ifError(err);
+				assert.equal(data.otherCount, 0);
+				assert.equal(data.usernames, &#039;upvoter&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should fail to get upvoters if user does not have read privilege&#039;, async () =&gt; {
+			await privileges.categories.rescind([&#039;groups:topics:read&#039;], cid, &#039;guests&#039;);
+			await assert.rejects(socketPosts.getUpvoters({ uid: 0 }, [postData.pid]), {
+				message: &#039;[[error:no-privileges]]&#039;,
+			});
+			await privileges.categories.give([&#039;groups:topics:read&#039;], cid, &#039;guests&#039;);
+		});
+
+		it(&#039;should unvote a post&#039;, async () =&gt; {
+			const result = await apiPosts.unvote({ uid: voterUid }, { pid: postData.pid, room_id: &#039;topic_1&#039; });
+			assert.equal(result.post.upvotes, 0);
+			assert.equal(result.post.downvotes, 0);
+			assert.equal(result.post.votes, 0);
+			assert.equal(result.user.reputation, 0);
+			const data = await posts.hasVoted(postData.pid, voterUid);
+			assert.equal(data.upvoted, false);
+			assert.equal(data.downvoted, false);
+		});
+
+		it(&#039;should downvote a post&#039;, async () =&gt; {
+			const result = await apiPosts.downvote({ uid: voterUid }, { pid: postData.pid, room_id: &#039;topic_1&#039; });
+			assert.equal(result.post.upvotes, 0);
+			assert.equal(result.post.downvotes, 1);
+			assert.equal(result.post.votes, -1);
+			assert.equal(result.user.reputation, -1);
+			const data = await posts.hasVoted(postData.pid, voterUid);
+			assert.equal(data.upvoted, false);
+			assert.equal(data.downvoted, true);
+		});
+
+		it(&#039;should add the pid to the :votes sorted set for that user&#039;, async () =&gt; {
+			const cid = await posts.getCidByPid(postData.pid);
+			const { uid, pid } = postData;
+
+			const score = await db.sortedSetScore(`cid:${cid}:uid:${uid}:pids:votes`, pid);
+			assert.strictEqual(score, -1);
+		});
+
+		it(&#039;should prevent downvoting more than total daily limit&#039;, async () =&gt; {
+			const oldValue = meta.config.downvotesPerDay;
+			meta.config.downvotesPerDay = 1;
+			let err;
+			const p1 = await topics.reply({
+				uid: voteeUid,
+				tid: topicData.tid,
+				content: &#039;raw content&#039;,
+			});
+			try {
+				await apiPosts.downvote({ uid: voterUid }, { pid: p1.pid, room_id: &#039;topic_1&#039; });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.equal(err.message, &#039;[[error:too-many-downvotes-today, 1]]&#039;);
+			meta.config.downvotesPerDay = oldValue;
+		});
+
+		it(&#039;should prevent downvoting target user more than total daily limit&#039;, async () =&gt; {
+			const oldValue = meta.config.downvotesPerUserPerDay;
+			meta.config.downvotesPerUserPerDay = 1;
+			let err;
+			const p1 = await topics.reply({
+				uid: voteeUid,
+				tid: topicData.tid,
+				content: &#039;raw content&#039;,
+			});
+			try {
+				await apiPosts.downvote({ uid: voterUid }, { pid: p1.pid, room_id: &#039;topic_1&#039; });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.equal(err.message, &#039;[[error:too-many-downvotes-today-user, 1]]&#039;);
+			meta.config.downvotesPerUserPerDay = oldValue;
+		});
+	});
+
+	describe(&#039;bookmarking&#039;, () =&gt; {
+		it(&#039;should bookmark a post&#039;, async () =&gt; {
+			const data = await apiPosts.bookmark({ uid: voterUid }, { pid: postData.pid, room_id: `topic_${postData.tid}` });
+			assert.equal(data.isBookmarked, true);
+			const hasBookmarked = await posts.hasBookmarked(postData.pid, voterUid);
+			assert.equal(hasBookmarked, true);
+		});
+
+		it(&#039;should unbookmark a post&#039;, async () =&gt; {
+			const data = await apiPosts.unbookmark({ uid: voterUid }, { pid: postData.pid, room_id: `topic_${postData.tid}` });
+			assert.equal(data.isBookmarked, false);
+			const hasBookmarked = await posts.hasBookmarked([postData.pid], voterUid);
+			assert.equal(hasBookmarked[0], false);
+		});
+	});
+
+	describe(&#039;post tools&#039;, () =&gt; {
+		it(&#039;should error if data is invalid&#039;, (done) =&gt; {
+			socketPosts.loadPostTools({ uid: globalModUid }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should load post tools&#039;, (done) =&gt; {
+			socketPosts.loadPostTools({ uid: globalModUid }, { pid: postData.pid, cid: cid }, (err, data) =&gt; {
+				assert.ifError(err);
+				assert(data.posts.display_edit_tools);
+				assert(data.posts.display_delete_tools);
+				assert(data.posts.display_moderator_tools);
+				assert(data.posts.display_move_tools);
+				done();
+			});
+		});
+	});
+
+	describe(&#039;delete/restore/purge&#039;, () =&gt; {
+		async function createTopicWithReply() {
+			const topicPostData = await topics.post({
+				uid: voterUid,
+				cid: cid,
+				title: &#039;topic to delete/restore/purge&#039;,
+				content: &#039;A post to delete/restore/purge&#039;,
+			});
+
+			const replyData = await topics.reply({
+				uid: voterUid,
+				tid: topicPostData.topicData.tid,
+				timestamp: Date.now(),
+				content: &#039;A post to delete/restore and purge&#039;,
+			});
+			return [topicPostData, replyData];
+		}
+
+		let tid;
+		let mainPid;
+		let replyPid;
+
+		before(async () =&gt; {
+			const [topicPostData, replyData] = await createTopicWithReply();
+			tid = topicPostData.topicData.tid;
+			mainPid = topicPostData.postData.pid;
+			replyPid = replyData.pid;
+			await privileges.categories.give([&#039;groups:purge&#039;], cid, &#039;registered-users&#039;);
+		});
+
+		it(&#039;should error with invalid data&#039;, async () =&gt; {
+			try {
+				await apiPosts.delete({ uid: voterUid }, null);
+			} catch (err) {
+				return assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+			}
+			assert(false);
+		});
+
+		it(&#039;should delete a post&#039;, async () =&gt; {
+			await apiPosts.delete({ uid: voterUid }, { pid: replyPid, tid: tid });
+			const isDeleted = await posts.getPostField(replyPid, &#039;deleted&#039;);
+			assert.strictEqual(isDeleted, 1);
+		});
+
+		it(&#039;should not see post content if global mod does not have posts:view_deleted privilege&#039;, async () =&gt; {
+			const uid = await user.create({ username: &#039;global mod&#039;, password: &#039;123456&#039; });
+			await groups.join(&#039;Global Moderators&#039;, uid);
+			await privileges.categories.rescind([&#039;groups:posts:view_deleted&#039;], cid, &#039;Global Moderators&#039;);
+			const { jar } = await helpers.loginUser(&#039;global mod&#039;, &#039;123456&#039;);
+			const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/${tid}`, { jar });
+			assert.equal(body.posts[1].content, &#039;[[topic:post-is-deleted]]&#039;);
+			await privileges.categories.give([&#039;groups:posts:view_deleted&#039;], cid, &#039;Global Moderators&#039;);
+		});
+
+		it(&#039;should restore a post&#039;, async () =&gt; {
+			await apiPosts.restore({ uid: voterUid }, { pid: replyPid, tid: tid });
+			const isDeleted = await posts.getPostField(replyPid, &#039;deleted&#039;);
+			assert.strictEqual(isDeleted, 0);
+		});
+
+		it(&#039;should delete topic if last main post is deleted&#039;, async () =&gt; {
+			const data = await topics.post({ uid: voterUid, cid: cid, title: &#039;test topic&#039;, content: &#039;test topic&#039; });
+			await apiPosts.delete({ uid: globalModUid }, { pid: data.postData.pid });
+			const deleted = await topics.getTopicField(data.topicData.tid, &#039;deleted&#039;);
+			assert.strictEqual(deleted, 1);
+		});
+
+		it(&#039;should purge posts and purge topic&#039;, async () =&gt; {
+			const [topicPostData, replyData] = await createTopicWithReply();
+			await apiPosts.purge({ uid: voterUid }, { pid: replyData.pid });
+			await apiPosts.purge({ uid: voterUid }, { pid: topicPostData.postData.pid });
+			const pidExists = await posts.exists(replyData.pid);
+			assert.strictEqual(pidExists, false);
+			const tidExists = await topics.exists(topicPostData.topicData.tid);
+			assert.strictEqual(tidExists, false);
+		});
+	});
+
+	describe(&#039;edit&#039;, () =&gt; {
+		let pid;
+		let replyPid;
+		let tid;
+		before((done) =&gt; {
+			topics.post({
+				uid: voterUid,
+				cid: cid,
+				title: &#039;topic to edit&#039;,
+				content: &#039;A post to edit&#039;,
+				tags: [&#039;nodebb&#039;],
+			}, (err, data) =&gt; {
+				assert.ifError(err);
+				pid = data.postData.pid;
+				tid = data.topicData.tid;
+				topics.reply({
+					uid: voterUid,
+					tid: tid,
+					timestamp: Date.now(),
+					content: &#039;A reply to edit&#039;,
+				}, (err, data) =&gt; {
+					assert.ifError(err);
+					replyPid = data.pid;
+					privileges.categories.give([&#039;groups:posts:edit&#039;], cid, &#039;registered-users&#039;, done);
+				});
+			});
+		});
+
+		it(&#039;should error if user is not logged in&#039;, async () =&gt; {
+			try {
+				await apiPosts.edit({ uid: 0 }, { pid: pid, content: &#039;gg&#039; });
+			} catch (err) {
+				return assert.equal(err.message, &#039;[[error:not-logged-in]]&#039;);
+			}
+			assert(false);
+		});
+
+		it(&#039;should error if data is invalid or missing&#039;, async () =&gt; {
+			try {
+				await apiPosts.edit({ uid: voterUid }, {});
+			} catch (err) {
+				return assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+			}
+			assert(false);
+		});
+
+		it(&#039;should error if title is too short&#039;, async () =&gt; {
+			try {
+				await apiPosts.edit({ uid: voterUid }, { pid: pid, content: &#039;edited post content&#039;, title: &#039;a&#039; });
+			} catch (err) {
+				return assert.equal(err.message, `[[error:title-too-short, ${meta.config.minimumTitleLength}]]`);
+			}
+			assert(false);
+		});
+
+		it(&#039;should error if title is too long&#039;, async () =&gt; {
+			const longTitle = new Array(meta.config.maximumTitleLength + 2).join(&#039;a&#039;);
+			try {
+				await apiPosts.edit({ uid: voterUid }, { pid: pid, content: &#039;edited post content&#039;, title: longTitle });
+			} catch (err) {
+				return assert.equal(err.message, `[[error:title-too-long, ${meta.config.maximumTitleLength}]]`);
+			}
+			assert(false);
+		});
+
+		it(&#039;should error with too few tags&#039;, async () =&gt; {
+			const oldValue = meta.config.minimumTagsPerTopic;
+			meta.config.minimumTagsPerTopic = 1;
+			try {
+				await apiPosts.edit({ uid: voterUid }, { pid: pid, content: &#039;edited post content&#039;, tags: [] });
+			} catch (err) {
+				assert.equal(err.message, `[[error:not-enough-tags, ${meta.config.minimumTagsPerTopic}]]`);
+				meta.config.minimumTagsPerTopic = oldValue;
+				return;
+			}
+			assert(false);
+		});
+
+		it(&#039;should error with too many tags&#039;, async () =&gt; {
+			const tags = [];
+			for (let i = 0; i &lt; meta.config.maximumTagsPerTopic + 1; i += 1) {
+				tags.push(`tag${i}`);
+			}
+			try {
+				await apiPosts.edit({ uid: voterUid }, { pid: pid, content: &#039;edited post content&#039;, tags: tags });
+			} catch (err) {
+				return assert.equal(err.message, `[[error:too-many-tags, ${meta.config.maximumTagsPerTopic}]]`);
+			}
+			assert(false);
+		});
+
+		it(&#039;should error if content is too short&#039;, async () =&gt; {
+			try {
+				await apiPosts.edit({ uid: voterUid }, { pid: pid, content: &#039;e&#039; });
+			} catch (err) {
+				return assert.equal(err.message, `[[error:content-too-short, ${meta.config.minimumPostLength}]]`);
+			}
+			assert(false);
+		});
+
+		it(&#039;should error if content is too long&#039;, async () =&gt; {
+			const longContent = new Array(meta.config.maximumPostLength + 2).join(&#039;a&#039;);
+			try {
+				await apiPosts.edit({ uid: voterUid }, { pid: pid, content: longContent });
+			} catch (err) {
+				return assert.equal(err.message, `[[error:content-too-long, ${meta.config.maximumPostLength}]]`);
+			}
+			assert(false);
+		});
+
+		it(&#039;should edit post&#039;, async () =&gt; {
+			const data = await apiPosts.edit({ uid: voterUid }, {
+				pid: pid,
+				content: &#039;edited post content&#039;,
+				title: &#039;edited title&#039;,
+				tags: [&#039;edited&#039;],
+			});
+
+			assert.strictEqual(data.content, &#039;edited post content&#039;);
+			assert.strictEqual(data.editor, voterUid);
+			assert.strictEqual(data.topic.title, &#039;edited title&#039;);
+			assert.strictEqual(data.topic.tags[0].value, &#039;edited&#039;);
+			const res = await db.getObject(`post:${pid}`);
+			assert(!res.hasOwnProperty(&#039;bookmarks&#039;));
+		});
+
+		it(&#039;should disallow post editing for new users if post was made past the threshold for editing&#039;, async () =&gt; {
+			meta.config.newbiePostEditDuration = 1;
+			await sleep(1000);
+			try {
+				await apiPosts.edit({ uid: voterUid }, { pid: pid, content: &#039;edited post content again&#039;, title: &#039;edited title again&#039;, tags: [&#039;edited-twice&#039;] });
+			} catch (err) {
+				assert.equal(err.message, &#039;[[error:post-edit-duration-expired, 1]]&#039;);
+				meta.config.newbiePostEditDuration = 3600;
+				return;
+			}
+			assert(false);
+		});
+
+		it(&#039;should edit a deleted post&#039;, async () =&gt; {
+			await apiPosts.delete({ uid: voterUid }, { pid: pid, tid: tid });
+			const data = await apiPosts.edit({ uid: voterUid }, { pid: pid, content: &#039;edited deleted content&#039;, title: &#039;edited deleted title&#039;, tags: [&#039;deleted&#039;] });
+			assert.equal(data.content, &#039;edited deleted content&#039;);
+			assert.equal(data.editor, voterUid);
+			assert.equal(data.topic.title, &#039;edited deleted title&#039;);
+			assert.equal(data.topic.tags[0].value, &#039;deleted&#039;);
+		});
+
+		it(&#039;should edit a reply post&#039;, async () =&gt; {
+			const data = await apiPosts.edit({ uid: voterUid }, { pid: replyPid, content: &#039;edited reply&#039; });
+			assert.equal(data.content, &#039;edited reply&#039;);
+			assert.equal(data.editor, voterUid);
+			assert.equal(data.topic.isMainPost, false);
+			assert.equal(data.topic.renamed, false);
+		});
+
+		it(&#039;should return diffs&#039;, (done) =&gt; {
+			posts.diffs.get(replyPid, 0, (err, data) =&gt; {
+				assert.ifError(err);
+				assert(Array.isArray(data));
+				assert(data[0].pid, replyPid);
+				assert(data[0].patch);
+				done();
+			});
+		});
+
+		it(&#039;should load diffs and reconstruct post&#039;, (done) =&gt; {
+			posts.diffs.load(replyPid, 0, voterUid, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.equal(data.content, &#039;A reply to edit&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should not allow guests to view diffs&#039;, async () =&gt; {
+			let err = {};
+			try {
+				await apiPosts.getDiffs({ uid: 0 }, { pid: 1 });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.strictEqual(err.message, &#039;[[error:no-privileges]]&#039;);
+		});
+
+		it(&#039;should allow registered-users group to view diffs&#039;, async () =&gt; {
+			const data = await apiPosts.getDiffs({ uid: 1 }, { pid: 1 });
+
+			assert.strictEqual(&#039;boolean&#039;, typeof data.editable);
+			assert.strictEqual(false, data.editable);
+
+			assert.equal(true, Array.isArray(data.timestamps));
+			assert.strictEqual(1, data.timestamps.length);
+
+			assert.equal(true, Array.isArray(data.revisions));
+			assert.strictEqual(data.timestamps.length, data.revisions.length);
+			[&#039;timestamp&#039;, &#039;username&#039;].every(prop =&gt; Object.keys(data.revisions[0]).includes(prop));
+		});
+
+		it(&#039;should not delete first diff of a post&#039;, async () =&gt; {
+			const timestamps = await posts.diffs.list(replyPid);
+			await assert.rejects(
+				posts.diffs.delete(replyPid, timestamps[0], voterUid),
+				{ message: &#039;[[error:invalid-data]]&#039; }
+			);
+		});
+
+		it(&#039;should delete a post diff&#039;, async () =&gt; {
+			await apiPosts.edit({ uid: voterUid }, { pid: replyPid, content: &#039;another edit has been made&#039; });
+			await apiPosts.edit({ uid: voterUid }, { pid: replyPid, content: &#039;most recent edit&#039; });
+			const timestamp = (await posts.diffs.list(replyPid)).pop();
+			await posts.diffs.delete(replyPid, timestamp, voterUid);
+			const differentTimestamp = (await posts.diffs.list(replyPid)).pop();
+			assert.notStrictEqual(timestamp, differentTimestamp);
+		});
+
+		it(&#039;should load (oldest) diff and reconstruct post correctly after a diff deletion&#039;, async () =&gt; {
+			const data = await posts.diffs.load(replyPid, 0, voterUid);
+			assert.strictEqual(data.content, &#039;A reply to edit&#039;);
+		});
+	});
+
+	describe(&#039;move&#039;, () =&gt; {
+		let replyPid;
+		let tid;
+		let moveTid;
+
+		before(async () =&gt; {
+			const topic1 = await topics.post({
+				uid: voterUid,
+				cid: cid,
+				title: &#039;topic 1&#039;,
+				content: &#039;some content&#039;,
+			});
+			tid = topic1.topicData.tid;
+			const topic2 = await topics.post({
+				uid: voterUid,
+				cid: cid,
+				title: &#039;topic 2&#039;,
+				content: &#039;some content&#039;,
+			});
+			moveTid = topic2.topicData.tid;
+
+			const reply = await topics.reply({
+				uid: voterUid,
+				tid: tid,
+				timestamp: Date.now(),
+				content: &#039;A reply to move&#039;,
+			});
+			replyPid = reply.pid;
+		});
+
+		it(&#039;should error if uid is not logged in&#039;, async () =&gt; {
+			try {
+				await apiPosts.move({ uid: 0 }, {});
+			} catch (err) {
+				return assert.equal(err.message, &#039;[[error:not-logged-in]]&#039;);
+			}
+			assert(false);
+		});
+
+		it(&#039;should error if data is invalid&#039;, async () =&gt; {
+			try {
+				await apiPosts.move({ uid: globalModUid }, {});
+			} catch (err) {
+				return assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+			}
+			assert(false);
+		});
+
+		it(&#039;should error if user does not have move privilege&#039;, async () =&gt; {
+			try {
+				await apiPosts.move({ uid: voterUid }, { pid: replyPid, tid: moveTid });
+			} catch (err) {
+				return assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+			}
+			assert(false);
+		});
+
+		it(&#039;should move a post&#039;, async () =&gt; {
+			await apiPosts.move({ uid: globalModUid }, { pid: replyPid, tid: moveTid });
+			const tid = await posts.getPostField(replyPid, &#039;tid&#039;);
+			assert(tid, moveTid);
+		});
+
+		it(&#039;should fail to move post if not moderator of target category&#039;, async () =&gt; {
+			const cat1 = await categories.create({ name: &#039;Test Category&#039;, description: &#039;Test category created by testing script&#039; });
+			const cat2 = await categories.create({ name: &#039;Test Category&#039;, description: &#039;Test category created by testing script&#039; });
+			const result = await apiTopics.create({ uid: globalModUid }, { title: &#039;target topic&#039;, content: &#039;queued topic&#039;, cid: cat2.cid });
+			const modUid = await user.create({ username: &#039;modofcat1&#039; });
+			const userPrivilegeList = await privileges.categories.getUserPrivilegeList();
+			await privileges.categories.give(userPrivilegeList, cat1.cid, modUid);
+			let err;
+			try {
+				await apiPosts.move({ uid: modUid }, { pid: replyPid, tid: result.tid });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.strictEqual(err.message, &#039;[[error:no-privileges]]&#039;);
+		});
+	});
+
+	describe(&#039;getPostSummaryByPids&#039;, () =&gt; {
+		it(&#039;should return empty array for empty pids&#039;, (done) =&gt; {
+			posts.getPostSummaryByPids([], 0, {}, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.equal(data.length, 0);
+				done();
+			});
+		});
+
+		it(&#039;should get post summaries&#039;, (done) =&gt; {
+			posts.getPostSummaryByPids([postData.pid], 0, {}, (err, data) =&gt; {
+				assert.ifError(err);
+				assert(data[0].user);
+				assert(data[0].topic);
+				assert(data[0].category);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should get recent poster uids&#039;, (done) =&gt; {
+		topics.reply({
+			uid: voterUid,
+			tid: topicData.tid,
+			timestamp: Date.now(),
+			content: &#039;some content&#039;,
+		}, (err) =&gt; {
+			assert.ifError(err);
+			posts.getRecentPosterUids(0, 1, (err, uids) =&gt; {
+				assert.ifError(err);
+				assert(Array.isArray(uids));
+				assert.equal(uids.length, 2);
+				assert.equal(uids[0], voterUid);
+				done();
+			});
+		});
+	});
+
+	describe(&#039;parse&#039;, () =&gt; {
+		it(&#039;should not crash and return falsy if post data is falsy&#039;, (done) =&gt; {
+			posts.parsePost(null, (err, postData) =&gt; {
+				assert.ifError(err);
+				assert.strictEqual(postData, null);
+				done();
+			});
+		});
+
+		it(&#039;should store post content in cache&#039;, (done) =&gt; {
+			const oldValue = global.env;
+			global.env = &#039;production&#039;;
+			const postData = {
+				pid: 9999,
+				content: &#039;some post content&#039;,
+			};
+			posts.parsePost(postData, (err) =&gt; {
+				assert.ifError(err);
+				posts.parsePost(postData, (err) =&gt; {
+					assert.ifError(err);
+					global.env = oldValue;
+					done();
+				});
+			});
+		});
+
+		it(&#039;should parse signature and remove links and images&#039;, (done) =&gt; {
+			meta.config[&#039;signatures:disableLinks&#039;] = 1;
+			meta.config[&#039;signatures:disableImages&#039;] = 1;
+			const userData = {
+				signature: &#039;&lt;img src=&quot;boop&quot;/&gt;&lt;a href=&quot;link&quot;&gt;test&lt;/a&gt; derp&#039;,
+			};
+
+			posts.parseSignature(userData, 1, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.equal(data.userData.signature, &#039;test derp&#039;);
+				meta.config[&#039;signatures:disableLinks&#039;] = 0;
+				meta.config[&#039;signatures:disableImages&#039;] = 0;
+				done();
+			});
+		});
+
+		it(&#039;should turn relative links in post body to absolute urls&#039;, (done) =&gt; {
+			const nconf = require(&#039;nconf&#039;);
+			const content = &#039;&lt;a href=&quot;/users&quot;&gt;test&lt;/a&gt; &lt;a href=&quot;youtube.com&quot;&gt;youtube&lt;/a&gt;&#039;;
+			const parsedContent = posts.relativeToAbsolute(content, posts.urlRegex);
+			assert.equal(parsedContent, `&lt;a href=&quot;${nconf.get(&#039;base_url&#039;)}/users&quot;&gt;test&lt;/a&gt; &lt;a href=&quot;//youtube.com&quot;&gt;youtube&lt;/a&gt;`);
+			done();
+		});
+
+		it(&#039;should turn relative links in post body to absolute urls&#039;, (done) =&gt; {
+			const nconf = require(&#039;nconf&#039;);
+			const content = &#039;&lt;a href=&quot;/users&quot;&gt;test&lt;/a&gt; &lt;a href=&quot;youtube.com&quot;&gt;youtube&lt;/a&gt; some test &lt;img src=&quot;/path/to/img&quot;/&gt;&#039;;
+			let parsedContent = posts.relativeToAbsolute(content, posts.urlRegex);
+			parsedContent = posts.relativeToAbsolute(parsedContent, posts.imgRegex);
+			assert.equal(parsedContent, `&lt;a href=&quot;${nconf.get(&#039;base_url&#039;)}/users&quot;&gt;test&lt;/a&gt; &lt;a href=&quot;//youtube.com&quot;&gt;youtube&lt;/a&gt; some test &lt;img src=&quot;${nconf.get(&#039;base_url&#039;)}/path/to/img&quot;/&gt;`);
+			done();
+		});
+	});
+
+	describe(&#039;socket methods&#039;, () =&gt; {
+		let pid;
+		before((done) =&gt; {
+			topics.reply({
+				uid: voterUid,
+				tid: topicData.tid,
+				timestamp: Date.now(),
+				content: &#039;raw content&#039;,
+			}, (err, postData) =&gt; {
+				assert.ifError(err);
+				pid = postData.pid;
+				privileges.categories.rescind([&#039;groups:topics:read&#039;], cid, &#039;guests&#039;, done);
+			});
+		});
+
+		it(&#039;should error with invalid data&#039;, async () =&gt; {
+			try {
+				await apiTopics.reply({ uid: 0 }, null);
+				assert(false);
+			} catch (err) {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+			}
+		});
+
+		it(&#039;should error with invalid tid&#039;, async () =&gt; {
+			try {
+				await apiTopics.reply({ uid: 0 }, { tid: 0, content: &#039;derp&#039; });
+				assert(false);
+			} catch (err) {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+			}
+		});
+
+		it(&#039;should fail to get raw post because of privilege&#039;, async () =&gt; {
+			const content = await apiPosts.getRaw({ uid: 0 }, { pid });
+			assert.strictEqual(content, null);
+		});
+
+		it(&#039;should fail to get raw post because post is deleted&#039;, async () =&gt; {
+			await posts.setPostField(pid, &#039;deleted&#039;, 1);
+			const content = await apiPosts.getRaw({ uid: voterUid }, { pid });
+			assert.strictEqual(content, null);
+		});
+
+		it(&#039;should allow privileged users to view the deleted post\&#039;s raw content&#039;, async () =&gt; {
+			await posts.setPostField(pid, &#039;deleted&#039;, 1);
+			const content = await apiPosts.getRaw({ uid: globalModUid }, { pid });
+			assert.strictEqual(content, &#039;raw content&#039;);
+		});
+
+		it(&#039;should get raw post content&#039;, async () =&gt; {
+			await posts.setPostField(pid, &#039;deleted&#039;, 0);
+			const postContent = await apiPosts.getRaw({ uid: voterUid }, { pid });
+			assert.equal(postContent, &#039;raw content&#039;);
+		});
+
+		it(&#039;should get post&#039;, async () =&gt; {
+			const postData = await apiPosts.get({ uid: voterUid }, { pid });
+			assert(postData);
+		});
+
+		it(&#039;should get post summary&#039;, async () =&gt; {
+			const summary = await apiPosts.getSummary({ uid: voterUid }, { pid });
+			assert(summary);
+		});
+
+		it(&#039;should get raw post content&#039;, async () =&gt; {
+			const postContent = await socketPosts.getRawPost({ uid: voterUid }, pid);
+			assert.equal(postContent, &#039;raw content&#039;);
+		});
+
+		it(&#039;should get post summary by index&#039;, async () =&gt; {
+			const summary = await socketPosts.getPostSummaryByIndex({ uid: voterUid }, {
+				index: 1,
+				tid: topicData.tid,
+			});
+			assert(summary);
+		});
+
+		it(&#039;should get post timestamp by index&#039;, async () =&gt; {
+			const timestamp = await socketPosts.getPostTimestampByIndex({ uid: voterUid }, {
+				index: 1,
+				tid: topicData.tid,
+			});
+			assert(utils.isNumber(timestamp));
+		});
+
+		it(&#039;should get post timestamp by index&#039;, async () =&gt; {
+			const summary = await socketPosts.getPostSummaryByPid({ uid: voterUid }, {
+				pid: pid,
+			});
+			assert(summary);
+		});
+
+		it(&#039;should get post category&#039;, async () =&gt; {
+			const postCid = await socketPosts.getCategory({ uid: voterUid }, pid);
+			assert.equal(cid, postCid);
+		});
+
+		it(&#039;should get pid index&#039;, async () =&gt; {
+			const index = await socketPosts.getPidIndex({ uid: voterUid }, { pid: pid, tid: topicData.tid, topicPostSort: &#039;oldest_to_newest&#039; });
+			assert.equal(index, 4);
+		});
+
+		it(&#039;should get pid index&#039;, async () =&gt; {
+			const index = await apiPosts.getIndex({ uid: voterUid }, { pid: pid, sort: &#039;oldest_to_newest&#039; });
+			assert.strictEqual(index, 4);
+		});
+
+		it(&#039;should get pid index in reverse&#039;, async () =&gt; {
+			const postData = await topics.reply({
+				uid: voterUid,
+				tid: topicData.tid,
+				content: &#039;raw content&#039;,
+			});
+
+			const index = await apiPosts.getIndex({ uid: voterUid }, { pid: postData.pid, sort: &#039;newest_to_oldest&#039; });
+			assert.equal(index, 1);
+		});
+	});
+
+	describe(&#039;filterPidsByCid&#039;, () =&gt; {
+		it(&#039;should return pids as is if cid is falsy&#039;, (done) =&gt; {
+			posts.filterPidsByCid([1, 2, 3], null, (err, pids) =&gt; {
+				assert.ifError(err);
+				assert.deepEqual([1, 2, 3], pids);
+				done();
+			});
+		});
+
+		it(&#039;should filter pids by single cid&#039;, (done) =&gt; {
+			posts.filterPidsByCid([postData.pid, 100, 101], cid, (err, pids) =&gt; {
+				assert.ifError(err);
+				assert.deepEqual([postData.pid], pids);
+				done();
+			});
+		});
+
+		it(&#039;should filter pids by multiple cids&#039;, (done) =&gt; {
+			posts.filterPidsByCid([postData.pid, 100, 101], [cid, 2, 3], (err, pids) =&gt; {
+				assert.ifError(err);
+				assert.deepEqual([postData.pid], pids);
+				done();
+			});
+		});
+
+		it(&#039;should filter pids by multiple cids&#039;, (done) =&gt; {
+			posts.filterPidsByCid([postData.pid, 100, 101], [cid], (err, pids) =&gt; {
+				assert.ifError(err);
+				assert.deepEqual([postData.pid], pids);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should error if user does not exist&#039;, (done) =&gt; {
+		user.isReadyToPost(21123123, 1, (err) =&gt; {
+			assert.equal(err.message, &#039;[[error:no-user]]&#039;);
+			done();
+		});
+	});
+
+	describe(&#039;post queue&#039;, () =&gt; {
+		let uid;
+		let queueId;
+		let topicQueueId;
+		let jar;
+		before((done) =&gt; {
+			meta.config.postQueue = 1;
+			user.create({ username: &#039;newuser&#039; }, (err, _uid) =&gt; {
+				assert.ifError(err);
+				uid = _uid;
+				done();
+			});
+		});
+
+		after((done) =&gt; {
+			meta.config.postQueue = 0;
+			meta.config.groupsExemptFromPostQueue = [];
+			done();
+		});
+
+		it(&#039;should add topic to post queue&#039;, async () =&gt; {
+			const result = await apiTopics.create({ uid: uid }, { title: &#039;should be queued&#039;, content: &#039;queued topic content&#039;, cid: cid });
+			assert.strictEqual(result.queued, true);
+			assert.equal(result.message, &#039;[[success:post-queued]]&#039;);
+			topicQueueId = result.id;
+		});
+
+		it(&#039;should add reply to post queue&#039;, async () =&gt; {
+			const result = await apiTopics.reply({ uid: uid }, { content: &#039;this is a queued reply&#039;, tid: topicData.tid });
+			assert.strictEqual(result.queued, true);
+			assert.equal(result.message, &#039;[[success:post-queued]]&#039;);
+			queueId = result.id;
+		});
+
+		it(&#039;should load queued posts&#039;, async () =&gt; {
+			({ jar } = await helpers.loginUser(&#039;globalmod&#039;, &#039;globalmodpwd&#039;));
+			const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/post-queue`, { jar });
+			const { posts } = body;
+			assert.equal(posts[0].type, &#039;topic&#039;);
+			assert.equal(posts[0].data.content, &#039;queued topic content&#039;);
+			assert.equal(posts[1].type, &#039;reply&#039;);
+			assert.equal(posts[1].data.content, &#039;this is a queued reply&#039;);
+		});
+
+		it(&#039;should error if data is invalid&#039;, (done) =&gt; {
+			socketPosts.editQueuedContent({ uid: globalModUid }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should edit post in queue&#039;, async () =&gt; {
+			await socketPosts.editQueuedContent({ uid: globalModUid }, { id: queueId, content: &#039;newContent&#039; });
+			const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/post-queue`, { jar });
+			const { posts } = body;
+			assert.equal(posts[1].type, &#039;reply&#039;);
+			assert.equal(posts[1].data.content, &#039;newContent&#039;);
+		});
+
+		it(&#039;should edit topic title in queue&#039;, async () =&gt; {
+			await socketPosts.editQueuedContent({ uid: globalModUid }, { id: topicQueueId, title: &#039;new topic title&#039; });
+			const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/post-queue`, { jar });
+			const { posts } = body;
+			assert.equal(posts[0].type, &#039;topic&#039;);
+			assert.equal(posts[0].data.title, &#039;new topic title&#039;);
+		});
+
+		it(&#039;should edit topic category in queue&#039;, async () =&gt; {
+			await socketPosts.editQueuedContent({ uid: globalModUid }, { id: topicQueueId, cid: 2 });
+			const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/post-queue`, { jar });
+			const { posts } = body;
+			assert.equal(posts[0].type, &#039;topic&#039;);
+			assert.equal(posts[0].data.cid, 2);
+			await socketPosts.editQueuedContent({ uid: globalModUid }, { id: topicQueueId, cid: cid });
+		});
+
+		it(&#039;should prevent regular users from approving posts&#039;, (done) =&gt; {
+			socketPosts.accept({ uid: uid }, { id: queueId }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should prevent regular users from approving non existing posts&#039;, (done) =&gt; {
+			socketPosts.accept({ uid: uid }, { id: 123123 }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:no-post]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should accept queued posts and submit&#039;, async () =&gt; {
+			const ids = await db.getSortedSetRange(&#039;post:queue&#039;, 0, -1);
+			await socketPosts.accept({ uid: globalModUid }, { id: ids[0] });
+			await socketPosts.accept({ uid: globalModUid }, { id: ids[1] });
+		});
+
+		it(&#039;should not crash if id does not exist&#039;, (done) =&gt; {
+			socketPosts.reject({ uid: globalModUid }, { id: &#039;123123123&#039; }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:no-post]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should bypass post queue if user is in exempt group&#039;, async () =&gt; {
+			const oldValue = meta.config.groupsExemptFromPostQueue;
+			meta.config.groupsExemptFromPostQueue = [&#039;registered-users&#039;];
+			const uid = await user.create({ username: &#039;mergeexemptuser&#039; });
+			const result = await apiTopics.create({ uid: uid, emit: () =&gt; {} }, { title: &#039;should not be queued&#039;, content: &#039;topic content&#039;, cid: cid });
+			assert.strictEqual(result.title, &#039;should not be queued&#039;);
+			meta.config.groupsExemptFromPostQueue = oldValue;
+		});
+
+		it(&#039;should update queued post\&#039;s topic if target topic is merged&#039;, async () =&gt; {
+			const uid = await user.create({ username: &#039;mergetestsuser&#039; });
+			const result1 = await apiTopics.create({ uid: globalModUid }, { title: &#039;topic A&#039;, content: &#039;topic A content&#039;, cid: cid });
+			const result2 = await apiTopics.create({ uid: globalModUid }, { title: &#039;topic B&#039;, content: &#039;topic B content&#039;, cid: cid });
+
+			const result = await apiTopics.reply({ uid: uid }, { content: &#039;the moved queued post&#039;, tid: result1.tid });
+
+			await topics.merge([
+				result1.tid, result2.tid,
+			], globalModUid, { mainTid: result2.tid });
+
+			let postData = await posts.getQueuedPosts();
+			postData = postData.filter(p =&gt; parseInt(p.data.tid, 10) === parseInt(result2.tid, 10));
+			assert.strictEqual(postData.length, 1);
+			assert.strictEqual(postData[0].data.content, &#039;the moved queued post&#039;);
+			assert.strictEqual(postData[0].data.tid, result2.tid);
+		});
+	});
+
+	describe(&#039;Topic Backlinks&#039;, () =&gt; {
+		let tid1;
+		before(async () =&gt; {
+			tid1 = await topics.post({
+				uid: 1,
+				cid,
+				title: &#039;Topic backlink testing - topic 1&#039;,
+				content: &#039;Some text here for the OP&#039;,
+			});
+			tid1 = tid1.topicData.tid;
+		});
+
+		describe(&#039;.syncBacklinks()&#039;, () =&gt; {
+			it(&#039;should error on invalid data&#039;, async () =&gt; {
+				try {
+					await topics.syncBacklinks();
+				} catch (e) {
+					assert(e);
+					assert.strictEqual(e.message, &#039;[[error:invalid-data]]&#039;);
+				}
+			});
+
+			it(&#039;should do nothing if the post does not contain a link to a topic&#039;, async () =&gt; {
+				const backlinks = await topics.syncBacklinks({
+					content: &#039;This is a post\&#039;s content&#039;,
+				});
+
+				assert.strictEqual(backlinks, 0);
+			});
+
+			it(&#039;should create a backlink if it detects a topic link in a post&#039;, async () =&gt; {
+				const count = await topics.syncBacklinks({
+					pid: 2,
+					content: `This is a link to [topic 1](${nconf.get(&#039;url&#039;)}/topic/1/abcdef)`,
+				});
+				const events = await topics.events.get(1, 1);
+				const backlinks = await db.getSortedSetMembers(&#039;pid:2:backlinks&#039;);
+
+				assert.strictEqual(count, 1);
+				assert(events);
+				assert.strictEqual(events.length, 1);
+				assert(backlinks);
+				assert(backlinks.includes(&#039;1&#039;));
+			});
+
+			it(&#039;should remove the backlink (but keep the event) if the post no longer contains a link to a topic&#039;, async () =&gt; {
+				const count = await topics.syncBacklinks({
+					pid: 2,
+					content: &#039;This is a link to [nothing](http://example.org)&#039;,
+				});
+				const events = await topics.events.get(1, 1);
+				const backlinks = await db.getSortedSetMembers(&#039;pid:2:backlinks&#039;);
+
+				assert.strictEqual(count, 0);
+				assert(events);
+				assert.strictEqual(events.length, 1);
+				assert(backlinks);
+				assert.strictEqual(backlinks.length, 0);
+			});
+
+			it(&#039;should not detect backlinks if they are in quotes&#039;, async () =&gt; {
+				const content = `
+					@baris said in [ok testing backlinks](/post/32145):
+					&gt; here is a back link to a topic
+					&gt;
+					&gt;
+					&gt; This is a link to [topic 1](${nconf.get(&#039;url&#039;)}/topic/1/abcdef
+
+					This should not generate backlink
+				`;
+				const count = await topics.syncBacklinks({
+					pid: 2,
+					content: content,
+				});
+
+				const backlinks = await db.getSortedSetMembers(&#039;pid:2:backlinks&#039;);
+
+				assert.strictEqual(count, 0);
+				assert(backlinks);
+				assert.strictEqual(backlinks.length, 0);
+			});
+		});
+
+		describe(&#039;integration tests&#039;, () =&gt; {
+			it(&#039;should create a topic event in the referenced topic&#039;, async () =&gt; {
+				const topic = await topics.post({
+					uid: 1,
+					cid,
+					title: &#039;Topic backlink testing - topic 2&#039;,
+					content: `Some text here for the OP &amp;ndash; ${nconf.get(&#039;url&#039;)}/topic/${tid1}`,
+				});
+
+				const events = await topics.events.get(tid1, 1);
+				assert(events);
+				assert.strictEqual(events.length, 1);
+				assert.strictEqual(events[0].type, &#039;backlink&#039;);
+				assert.strictEqual(parseInt(events[0].uid, 10), 1);
+				assert.strictEqual(events[0].href, `/post/${topic.postData.pid}`);
+			});
+
+			it(&#039;should not create a topic event if referenced topic is the same as current topic&#039;, async () =&gt; {
+				await topics.reply({
+					uid: 1,
+					tid: tid1,
+					content: `Referencing itself &amp;ndash; ${nconf.get(&#039;url&#039;)}/topic/${tid1}`,
+				});
+
+				const events = await topics.events.get(tid1, 1);
+				assert(events);
+				assert.strictEqual(events.length, 1); // should still equal 1
+			});
+
+			it(&#039;should not show backlink events if the feature is disabled&#039;, async () =&gt; {
+				meta.config.topicBacklinks = 0;
+
+				await topics.post({
+					uid: 1,
+					cid,
+					title: &#039;Topic backlink testing - topic 3&#039;,
+					content: `Some text here for the OP &amp;ndash; ${nconf.get(&#039;url&#039;)}/topic/${tid1}`,
+				});
+
+				const events = await topics.events.get(tid1, 1);
+				assert(events);
+				assert.strictEqual(events.length, 0);
+			});
+		});
+	});
+});
+
+describe(&#039;Posts\&#039;&#039;, async () =&gt; {
+	let files;
+
+	before(async () =&gt; {
+		files = await file.walk(path.resolve(__dirname, &#039;./posts&#039;));
+	});
+
+	it(&#039;subfolder tests&#039;, () =&gt; {
+		files.forEach((filePath) =&gt; {
+			require(filePath);
+		});
+	});
+});</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

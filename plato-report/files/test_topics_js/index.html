@@ -1,0 +1,2638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - test/topics.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>test/topics.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">68.18</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">2521</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">123.81</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">46.78</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+const path = require(&#039;path&#039;);
+const assert = require(&#039;assert&#039;);
+const validator = require(&#039;validator&#039;);
+const mockdate = require(&#039;mockdate&#039;);
+const nconf = require(&#039;nconf&#039;);
+const util = require(&#039;util&#039;);
+
+const sleep = util.promisify(setTimeout);
+
+const db = require(&#039;./mocks/databasemock&#039;);
+const file = require(&#039;../src/file&#039;);
+const topics = require(&#039;../src/topics&#039;);
+const posts = require(&#039;../src/posts&#039;);
+const categories = require(&#039;../src/categories&#039;);
+const privileges = require(&#039;../src/privileges&#039;);
+const meta = require(&#039;../src/meta&#039;);
+const User = require(&#039;../src/user&#039;);
+const groups = require(&#039;../src/groups&#039;);
+const utils = require(&#039;../src/utils&#039;);
+const helpers = require(&#039;./helpers&#039;);
+const socketTopics = require(&#039;../src/socket.io/topics&#039;);
+const apiTopics = require(&#039;../src/api/topics&#039;);
+const apiPosts = require(&#039;../src/api/posts&#039;);
+const request = require(&#039;../src/request&#039;);
+
+describe(&#039;Topic\&#039;s&#039;, () =&gt; {
+	let topic;
+	let categoryObj;
+	let adminUid;
+	let adminJar;
+	let csrf_token;
+	let fooUid;
+
+	before(async () =&gt; {
+		adminUid = await User.create({ username: &#039;admin&#039;, password: &#039;123456&#039; });
+		fooUid = await User.create({ username: &#039;foo&#039; });
+		await groups.join(&#039;administrators&#039;, adminUid);
+		const adminLogin = await helpers.loginUser(&#039;admin&#039;, &#039;123456&#039;);
+		adminJar = adminLogin.jar;
+		csrf_token = adminLogin.csrf_token;
+
+		categoryObj = await categories.create({
+			name: &#039;Test Category&#039;,
+			description: &#039;Test category created by testing script&#039;,
+		});
+		topic = {
+			userId: adminUid,
+			categoryId: categoryObj.cid,
+			title: &#039;Test Topic Title&#039;,
+			content: &#039;The content of test topic&#039;,
+		};
+	});
+
+	describe(&#039;.post&#039;, () =&gt; {
+		it(&#039;should fail to create topic with invalid data&#039;, async () =&gt; {
+			try {
+				await apiTopics.create({ uid: 0 }, null);
+				assert(false);
+			} catch (err) {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+			}
+		});
+
+		it(&#039;should create a new topic with proper parameters&#039;, (done) =&gt; {
+			topics.post({
+				uid: topic.userId,
+				title: topic.title,
+				content: topic.content,
+				cid: topic.categoryId,
+			}, (err, result) =&gt; {
+				assert.ifError(err);
+				assert(result);
+				topic.tid = result.topicData.tid;
+				done();
+			});
+		});
+
+		it(&#039;should get post count&#039;, async () =&gt; {
+			const count = await socketTopics.postcount({ uid: adminUid }, topic.tid);
+			assert.strictEqual(count, 1);
+		});
+
+		it(&#039;should get users postcount in topic&#039;, async () =&gt; {
+			assert.strictEqual(await socketTopics.getPostCountInTopic({ uid: 0 }, 0), 0);
+			assert.strictEqual(await socketTopics.getPostCountInTopic({ uid: adminUid }, 0), 0);
+			assert.strictEqual(await socketTopics.getPostCountInTopic({ uid: adminUid }, topic.tid), 1);
+		});
+
+		it(&#039;should load topic&#039;, async () =&gt; {
+			const data = await apiTopics.get({ uid: adminUid }, { tid: topic.tid });
+			assert.equal(data.tid, topic.tid);
+		});
+
+		it(&#039;should fail to create new topic with invalid user id&#039;, (done) =&gt; {
+			topics.post({ uid: null, title: topic.title, content: topic.content, cid: topic.categoryId }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should fail to create new topic with empty title&#039;, (done) =&gt; {
+			topics.post({ uid: fooUid, title: &#039;&#039;, content: topic.content, cid: topic.categoryId }, (err) =&gt; {
+				assert.ok(err);
+				done();
+			});
+		});
+
+		it(&#039;should fail to create new topic with empty content&#039;, (done) =&gt; {
+			topics.post({ uid: fooUid, title: topic.title, content: &#039;&#039;, cid: topic.categoryId }, (err) =&gt; {
+				assert.ok(err);
+				done();
+			});
+		});
+
+		it(&#039;should fail to create new topic with non-existant category id&#039;, (done) =&gt; {
+			topics.post({ uid: topic.userId, title: topic.title, content: topic.content, cid: 99 }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:no-category]]&#039;, &#039;received no error&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should return false for falsy uid&#039;, (done) =&gt; {
+			topics.isOwner(topic.tid, 0, (err, isOwner) =&gt; {
+				assert.ifError(err);
+				assert(!isOwner);
+				done();
+			});
+		});
+
+		it(&#039;should fail to post a topic as guest with invalid csrf_token&#039;, async () =&gt; {
+			const categoryObj = await categories.create({
+				name: &#039;Test Category&#039;,
+				description: &#039;Test category created by testing script&#039;,
+			});
+			await privileges.categories.give([&#039;groups:topics:create&#039;], categoryObj.cid, &#039;guests&#039;);
+			await privileges.categories.give([&#039;groups:topics:reply&#039;], categoryObj.cid, &#039;guests&#039;);
+			const result = await request.post(`${nconf.get(&#039;url&#039;)}/api/v3/topics`, {
+				data: {
+					title: &#039;just a title&#039;,
+					cid: categoryObj.cid,
+					content: &#039;content for the main post&#039;,
+				},
+				headers: {
+					&#039;x-csrf-token&#039;: &#039;invalid&#039;,
+				},
+			});
+			assert.strictEqual(result.response.statusCode, 403);
+			assert.strictEqual(result.body, &#039;Forbidden&#039;);
+		});
+
+		it(&#039;should fail to post a topic as guest if no privileges&#039;, async () =&gt; {
+			const categoryObj = await categories.create({
+				name: &#039;Test Category&#039;,
+				description: &#039;Test category created by testing script&#039;,
+			});
+			const jar = request.jar();
+			const result = await helpers.request(&#039;post&#039;, `/api/v3/topics`, {
+				body: {
+					title: &#039;just a title&#039;,
+					cid: categoryObj.cid,
+					content: &#039;content for the main post&#039;,
+				},
+				jar: jar,
+			});
+			assert.strictEqual(result.body.status.message, &#039;You do not have enough privileges for this action.&#039;);
+		});
+
+		it(&#039;should post a topic as guest if guest group has privileges&#039;, async () =&gt; {
+			const categoryObj = await categories.create({
+				name: &#039;Test Category&#039;,
+				description: &#039;Test category created by testing script&#039;,
+			});
+			await privileges.categories.give([&#039;groups:topics:create&#039;], categoryObj.cid, &#039;guests&#039;);
+			await privileges.categories.give([&#039;groups:topics:reply&#039;], categoryObj.cid, &#039;guests&#039;);
+
+			const jar = request.jar();
+			const result = await helpers.request(&#039;post&#039;, `/api/v3/topics`, {
+				body: {
+					title: &#039;just a title&#039;,
+					cid: categoryObj.cid,
+					content: &#039;content for the main post&#039;,
+				},
+				jar: jar,
+				json: true,
+			});
+
+			assert.strictEqual(result.body.status.code, &#039;ok&#039;);
+			assert.strictEqual(result.body.response.title, &#039;just a title&#039;);
+			assert.strictEqual(result.body.response.user.username, &#039;[[global:guest]]&#039;);
+
+			const replyResult = await helpers.request(&#039;post&#039;, `/api/v3/topics/${result.body.response.tid}`, {
+				body: {
+					content: &#039;a reply by guest&#039;,
+				},
+				jar: jar,
+			});
+			assert.strictEqual(replyResult.body.response.content, &#039;a reply by guest&#039;);
+			assert.strictEqual(replyResult.body.response.user.username, &#039;[[global:guest]]&#039;);
+		});
+
+		it(&#039;should post a topic/reply as guest with handle if guest group has privileges&#039;, async () =&gt; {
+			const categoryObj = await categories.create({
+				name: &#039;Test Category&#039;,
+				description: &#039;Test category created by testing script&#039;,
+			});
+			await privileges.categories.give([&#039;groups:topics:create&#039;], categoryObj.cid, &#039;guests&#039;);
+			await privileges.categories.give([&#039;groups:topics:reply&#039;], categoryObj.cid, &#039;guests&#039;);
+			const oldValue = meta.config.allowGuestHandles;
+			meta.config.allowGuestHandles = 1;
+			const result = await helpers.request(&#039;post&#039;, `/api/v3/topics`, {
+				body: {
+					title: &#039;just a title&#039;,
+					cid: categoryObj.cid,
+					content: &#039;content for the main post&#039;,
+					handle: &#039;guest123&#039;,
+				},
+				jar: request.jar(),
+			});
+
+			assert.strictEqual(result.body.status.code, &#039;ok&#039;);
+			assert.strictEqual(result.body.response.title, &#039;just a title&#039;);
+			assert.strictEqual(result.body.response.user.username, &#039;guest123&#039;);
+			assert.strictEqual(result.body.response.user.displayname, &#039;guest123&#039;);
+
+			const replyResult = await helpers.request(&#039;post&#039;, `/api/v3/topics/${result.body.response.tid}`, {
+				body: {
+					content: &#039;a reply by guest&#039;,
+					handle: &#039;guest124&#039;,
+				},
+				jar: request.jar(),
+			});
+			assert.strictEqual(replyResult.body.response.content, &#039;a reply by guest&#039;);
+			assert.strictEqual(replyResult.body.response.user.username, &#039;guest124&#039;);
+			assert.strictEqual(replyResult.body.response.user.displayname, &#039;guest124&#039;);
+			meta.config.allowGuestHandles = oldValue;
+		});
+	});
+
+	describe(&#039;.reply&#039;, () =&gt; {
+		let newTopic;
+		let newPost;
+
+		before((done) =&gt; {
+			topics.post({
+				uid: topic.userId,
+				title: topic.title,
+				content: topic.content,
+				cid: topic.categoryId,
+			}, (err, result) =&gt; {
+				if (err) {
+					return done(err);
+				}
+
+				newTopic = result.topicData;
+				newPost = result.postData;
+				done();
+			});
+		});
+
+		it(&#039;should create a new reply with proper parameters&#039;, (done) =&gt; {
+			topics.reply({ uid: topic.userId, content: &#039;test post&#039;, tid: newTopic.tid }, (err, result) =&gt; {
+				assert.equal(err, null, &#039;was created with error&#039;);
+				assert.ok(result);
+
+				done();
+			});
+		});
+
+		it(&#039;should handle direct replies&#039;, async () =&gt; {
+			const result = await topics.reply({ uid: topic.userId, content: &#039;test reply&#039;, tid: newTopic.tid, toPid: newPost.pid });
+			assert.ok(result);
+
+			const postData = await apiPosts.getReplies({ uid: 0 }, { pid: newPost.pid });
+			assert.ok(postData);
+
+			assert.equal(postData.length, 1, &#039;should have 1 result&#039;);
+			assert.equal(postData[0].pid, result.pid, &#039;result should be the reply we added&#039;);
+		});
+
+		it(&#039;should error if pid is not a number&#039;, async () =&gt; {
+			await assert.rejects(
+				apiPosts.getReplies({ uid: 0 }, { pid: &#039;abc&#039; }),
+				{ message: &#039;[[error:invalid-data]]&#039; }
+			);
+		});
+
+		it(&#039;should fail to create new reply with invalid user id&#039;, (done) =&gt; {
+			topics.reply({ uid: null, content: &#039;test post&#039;, tid: newTopic.tid }, (err) =&gt; {
+				assert.strictEqual(err.message, &#039;[[error:no-privileges]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should fail to create new reply with empty content&#039;, (done) =&gt; {
+			topics.reply({ uid: fooUid, content: &#039;&#039;, tid: newTopic.tid }, (err) =&gt; {
+				assert.strictEqual(err.message, &#039;[[error:content-too-short, 8]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should fail to create new reply with invalid topic id&#039;, (done) =&gt; {
+			topics.reply({ uid: null, content: &#039;test post&#039;, tid: 99 }, (err) =&gt; {
+				assert.strictEqual(err.message, &#039;[[error:no-topic]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should fail to create new reply with invalid toPid&#039;, (done) =&gt; {
+			topics.reply({ uid: topic.userId, content: &#039;test post&#039;, tid: newTopic.tid, toPid: &#039;&quot;onmouseover=alert(1);//&#039; }, (err) =&gt; {
+				assert.strictEqual(err.message, &#039;[[error:invalid-pid]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should fail to create new reply with toPid that has been purged&#039;, async () =&gt; {
+			const { postData } = await topics.post({
+				uid: topic.userId,
+				cid: topic.categoryId,
+				title: utils.generateUUID(),
+				content: utils.generateUUID(),
+			});
+			await posts.purge(postData.pid, topic.userId);
+
+			await assert.rejects(
+				topics.reply({ uid: topic.userId, content: &#039;test post&#039;, tid: postData.topic.tid, toPid: postData.pid }),
+				{ message: &#039;[[error:invalid-pid]]&#039; }
+			);
+		});
+
+		it(&#039;should fail to create a new reply with toPid that has been deleted (user cannot view_deleted)&#039;, async () =&gt; {
+			const { postData } = await topics.post({
+				uid: topic.userId,
+				cid: topic.categoryId,
+				title: utils.generateUUID(),
+				content: utils.generateUUID(),
+			});
+			await posts.delete(postData.pid, topic.userId);
+			const uid = await User.create({ username: utils.generateUUID().slice(0, 10) });
+
+			await assert.rejects(
+				topics.reply({ uid, content: &#039;test post&#039;, tid: postData.topic.tid, toPid: postData.pid }),
+				{ message: &#039;[[error:invalid-pid]]&#039; }
+			);
+		});
+
+		it(&#039;should properly create a new reply with toPid that has been deleted (user\&#039;s own deleted post)&#039;, async () =&gt; {
+			const { postData } = await topics.post({
+				uid: topic.userId,
+				cid: topic.categoryId,
+				title: utils.generateUUID(),
+				content: utils.generateUUID(),
+			});
+			await posts.delete(postData.pid, topic.userId);
+			const uid = await User.create({ username: utils.generateUUID().slice(0, 10) });
+
+			const { pid } = await topics.reply({ uid: topic.userId, content: &#039;test post&#039;, tid: postData.topic.tid, toPid: postData.pid });
+			assert(pid);
+		});
+
+		it(&#039;should delete nested relies properly&#039;, async () =&gt; {
+			const result = await topics.post({ uid: fooUid, title: &#039;nested test&#039;, content: &#039;main post&#039;, cid: topic.categoryId });
+			const reply1 = await topics.reply({ uid: fooUid, content: &#039;reply post 1&#039;, tid: result.topicData.tid });
+			const reply2 = await topics.reply({ uid: fooUid, content: &#039;reply post 2&#039;, tid: result.topicData.tid, toPid: reply1.pid });
+			let replies = await apiPosts.getReplies({ uid: fooUid }, { pid: reply1.pid });
+			assert.strictEqual(replies.length, 1);
+			assert.strictEqual(replies[0].content, &#039;reply post 2&#039;);
+			let toPid = await posts.getPostField(reply2.pid, &#039;toPid&#039;);
+			assert.strictEqual(parseInt(toPid, 10), parseInt(reply1.pid, 10));
+			await posts.purge(reply1.pid, fooUid);
+			replies = await apiPosts.getReplies({ uid: fooUid }, { pid: reply1.pid });
+			assert.strictEqual(replies, null);
+			toPid = await posts.getPostField(reply2.pid, &#039;toPid&#039;);
+			assert.strictEqual(toPid, null);
+		});
+	});
+
+	describe(&#039;Get methods&#039;, () =&gt; {
+		let newTopic;
+		let newPost;
+
+		before((done) =&gt; {
+			topics.post({
+				uid: topic.userId,
+				title: topic.title,
+				content: topic.content,
+				cid: topic.categoryId,
+			}, (err, result) =&gt; {
+				if (err) {
+					return done(err);
+				}
+
+				newTopic = result.topicData;
+				newPost = result.postData;
+				done();
+			});
+		});
+
+
+		it(&#039;should not receive errors&#039;, (done) =&gt; {
+			topics.getTopicData(newTopic.tid, (err, topicData) =&gt; {
+				assert.ifError(err);
+				assert(typeof topicData.tid === &#039;number&#039;);
+				assert(typeof topicData.uid === &#039;number&#039;);
+				assert(typeof topicData.cid === &#039;number&#039;);
+				assert(typeof topicData.mainPid === &#039;number&#039;);
+
+				assert(typeof topicData.timestamp === &#039;number&#039;);
+				assert.strictEqual(topicData.postcount, 1);
+				assert.strictEqual(topicData.viewcount, 0);
+				assert.strictEqual(topicData.upvotes, 0);
+				assert.strictEqual(topicData.downvotes, 0);
+				assert.strictEqual(topicData.votes, 0);
+				assert.strictEqual(topicData.deleted, 0);
+				assert.strictEqual(topicData.locked, 0);
+				assert.strictEqual(topicData.pinned, 0);
+				done();
+			});
+		});
+
+		it(&#039;should get a single field&#039;, (done) =&gt; {
+			topics.getTopicFields(newTopic.tid, [&#039;slug&#039;], (err, data) =&gt; {
+				assert.ifError(err);
+				assert(Object.keys(data).length === 1);
+				assert(data.hasOwnProperty(&#039;slug&#039;));
+				done();
+			});
+		});
+
+		it(&#039;should get topic title by pid&#039;, (done) =&gt; {
+			topics.getTitleByPid(newPost.pid, (err, title) =&gt; {
+				assert.ifError(err);
+				assert.equal(title, topic.title);
+				done();
+			});
+		});
+
+		it(&#039;should get topic data by pid&#039;, (done) =&gt; {
+			topics.getTopicDataByPid(newPost.pid, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.equal(data.tid, newTopic.tid);
+				done();
+			});
+		});
+
+		describe(&#039;.getTopicWithPosts&#039;, () =&gt; {
+			let tid;
+			before(async () =&gt; {
+				const result = await topics.post({ uid: topic.userId, title: &#039;page test&#039;, content: &#039;main post&#039;, cid: topic.categoryId });
+				tid = result.topicData.tid;
+				for (let i = 0; i &lt; 30; i++) {
+					// eslint-disable-next-line no-await-in-loop
+					await topics.reply({ uid: adminUid, content: `topic reply ${i + 1}`, tid: tid });
+				}
+			});
+
+			it(&#039;should get a topic with posts and other data&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const data = await topics.getTopicWithPosts(topicData, `tid:${tid}:posts`, topic.userId, 0, -1, false);
+				assert(data);
+				assert.equal(data.category.cid, topic.categoryId);
+				assert.equal(data.unreplied, false);
+				assert.equal(data.deleted, false);
+				assert.equal(data.locked, false);
+				assert.equal(data.pinned, false);
+			});
+
+			it(&#039;should return first 3 posts including main post&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const data = await topics.getTopicWithPosts(topicData, `tid:${tid}:posts`, topic.userId, 0, 2, false);
+				assert.strictEqual(data.posts.length, 3);
+				assert.strictEqual(data.posts[0].content, &#039;main post&#039;);
+				assert.strictEqual(data.posts[1].content, &#039;topic reply 1&#039;);
+				assert.strictEqual(data.posts[2].content, &#039;topic reply 2&#039;);
+				data.posts.forEach((post, index) =&gt; {
+					assert.strictEqual(post.index, index);
+				});
+			});
+
+			it(&#039;should return 3 posts from 1 to 3 excluding main post&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const start = 1;
+				const data = await topics.getTopicWithPosts(topicData, `tid:${tid}:posts`, topic.userId, start, 3, false);
+				assert.strictEqual(data.posts.length, 3);
+				assert.strictEqual(data.posts[0].content, &#039;topic reply 1&#039;);
+				assert.strictEqual(data.posts[1].content, &#039;topic reply 2&#039;);
+				assert.strictEqual(data.posts[2].content, &#039;topic reply 3&#039;);
+				data.posts.forEach((post, index) =&gt; {
+					assert.strictEqual(post.index, index + start);
+				});
+			});
+
+			it(&#039;should return main post and last 2 posts&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const data = await topics.getTopicWithPosts(topicData, `tid:${tid}:posts`, topic.userId, 0, 2, true);
+				assert.strictEqual(data.posts.length, 3);
+				assert.strictEqual(data.posts[0].content, &#039;main post&#039;);
+				assert.strictEqual(data.posts[1].content, &#039;topic reply 30&#039;);
+				assert.strictEqual(data.posts[2].content, &#039;topic reply 29&#039;);
+				data.posts.forEach((post, index) =&gt; {
+					assert.strictEqual(post.index, index);
+				});
+			});
+
+			it(&#039;should return last 3 posts and not main post&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const start = 1;
+				const data = await topics.getTopicWithPosts(topicData, `tid:${tid}:posts`, topic.userId, start, 3, true);
+				assert.strictEqual(data.posts.length, 3);
+				assert.strictEqual(data.posts[0].content, &#039;topic reply 30&#039;);
+				assert.strictEqual(data.posts[1].content, &#039;topic reply 29&#039;);
+				assert.strictEqual(data.posts[2].content, &#039;topic reply 28&#039;);
+				data.posts.forEach((post, index) =&gt; {
+					assert.strictEqual(post.index, index + start);
+				});
+			});
+
+			it(&#039;should return posts 29 to 27 posts and not main post&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const start = 2;
+				const data = await topics.getTopicWithPosts(topicData, `tid:${tid}:posts`, topic.userId, start, 4, true);
+				assert.strictEqual(data.posts.length, 3);
+				assert.strictEqual(data.posts[0].content, &#039;topic reply 29&#039;);
+				assert.strictEqual(data.posts[1].content, &#039;topic reply 28&#039;);
+				assert.strictEqual(data.posts[2].content, &#039;topic reply 27&#039;);
+				data.posts.forEach((post, index) =&gt; {
+					assert.strictEqual(post.index, index + start);
+				});
+			});
+
+			it(&#039;should return 3 posts in reverse&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const start = 28;
+				const data = await topics.getTopicWithPosts(topicData, `tid:${tid}:posts`, topic.userId, start, 30, true);
+				assert.strictEqual(data.posts.length, 3);
+				assert.strictEqual(data.posts[0].content, &#039;topic reply 3&#039;);
+				assert.strictEqual(data.posts[1].content, &#039;topic reply 2&#039;);
+				assert.strictEqual(data.posts[2].content, &#039;topic reply 1&#039;);
+				data.posts.forEach((post, index) =&gt; {
+					assert.strictEqual(post.index, index + start);
+				});
+			});
+
+			it(&#039;should get all posts with main post at the start&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const data = await topics.getTopicWithPosts(topicData, `tid:${tid}:posts`, topic.userId, 0, -1, false);
+				assert.strictEqual(data.posts.length, 31);
+				assert.strictEqual(data.posts[0].content, &#039;main post&#039;);
+				assert.strictEqual(data.posts[1].content, &#039;topic reply 1&#039;);
+				assert.strictEqual(data.posts[data.posts.length - 1].content, &#039;topic reply 30&#039;);
+				data.posts.forEach((post, index) =&gt; {
+					assert.strictEqual(post.index, index);
+				});
+			});
+
+			it(&#039;should get all posts in reverse with main post at the start followed by reply 30&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const data = await topics.getTopicWithPosts(topicData, `tid:${tid}:posts`, topic.userId, 0, -1, true);
+				assert.strictEqual(data.posts.length, 31);
+				assert.strictEqual(data.posts[0].content, &#039;main post&#039;);
+				assert.strictEqual(data.posts[1].content, &#039;topic reply 30&#039;);
+				assert.strictEqual(data.posts[data.posts.length - 1].content, &#039;topic reply 1&#039;);
+				data.posts.forEach((post, index) =&gt; {
+					assert.strictEqual(post.index, index);
+				});
+			});
+
+			it(&#039;should return empty array if first param is falsy&#039;, async () =&gt; {
+				const posts = await topics.getTopicPosts(null, `tid:${tid}:posts`, 0, 9, topic.userId, true);
+				assert.deepStrictEqual(posts, []);
+			});
+
+			it(&#039;should only return main post&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const postsData = await topics.getTopicPosts(topicData, `tid:${tid}:posts`, 0, 0, topic.userId, false);
+				assert.strictEqual(postsData.length, 1);
+				assert.strictEqual(postsData[0].content, &#039;main post&#039;);
+			});
+
+			it(&#039;should only return first reply&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const postsData = await topics.getTopicPosts(topicData, `tid:${tid}:posts`, 1, 1, topic.userId, false);
+				assert.strictEqual(postsData.length, 1);
+				assert.strictEqual(postsData[0].content, &#039;topic reply 1&#039;);
+			});
+
+			it(&#039;should return main post and first reply&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const postsData = await topics.getTopicPosts(topicData, `tid:${tid}:posts`, 0, 1, topic.userId, false);
+				assert.strictEqual(postsData.length, 2);
+				assert.strictEqual(postsData[0].content, &#039;main post&#039;);
+				assert.strictEqual(postsData[1].content, &#039;topic reply 1&#039;);
+			});
+
+			it(&#039;should return posts in correct order&#039;, async () =&gt; {
+				const data = await socketTopics.loadMore({ uid: topic.userId }, { tid: tid, after: 20, direction: 1 });
+				assert.strictEqual(data.posts.length, 11);
+				assert.strictEqual(data.posts[0].content, &#039;topic reply 20&#039;);
+				assert.strictEqual(data.posts[1].content, &#039;topic reply 21&#039;);
+			});
+
+			it(&#039;should return posts in correct order in reverse direction&#039;, async () =&gt; {
+				const data = await socketTopics.loadMore({ uid: topic.userId }, { tid: tid, after: 25, direction: -1 });
+				assert.strictEqual(data.posts.length, 20);
+				assert.strictEqual(data.posts[0].content, &#039;topic reply 5&#039;);
+				assert.strictEqual(data.posts[1].content, &#039;topic reply 6&#039;);
+			});
+
+			it(&#039;should return all posts in correct order&#039;, async () =&gt; {
+				const topicData = await topics.getTopicData(tid);
+				const postsData = await topics.getTopicPosts(topicData, `tid:${tid}:posts`, 0, -1, topic.userId, false);
+				assert.strictEqual(postsData.length, 31);
+				assert.strictEqual(postsData[0].content, &#039;main post&#039;);
+				for (let i = 1; i &lt; 30; i++) {
+					assert.strictEqual(postsData[i].content, `topic reply ${i}`);
+				}
+			});
+		});
+	});
+
+	describe(&#039;Title escaping&#039;, () =&gt; {
+		it(&#039;should properly escape topic title&#039;, (done) =&gt; {
+			const title = &#039;&quot;&lt;script&gt;alert(\&#039;ok1\&#039;);&lt;/script&gt; new topic test&#039;;
+			const titleEscaped = validator.escape(title);
+			topics.post({ uid: topic.userId, title: title, content: topic.content, cid: topic.categoryId }, (err, result) =&gt; {
+				assert.ifError(err);
+				topics.getTopicData(result.topicData.tid, (err, topicData) =&gt; {
+					assert.ifError(err);
+					assert.strictEqual(topicData.titleRaw, title);
+					assert.strictEqual(topicData.title, titleEscaped);
+					done();
+				});
+			});
+		});
+	});
+
+	describe(&#039;tools/delete/restore/purge&#039;, () =&gt; {
+		let newTopic;
+		let followerUid;
+		let moveCid;
+
+		before(async () =&gt; {
+			({ topicData: newTopic } = await topics.post({
+				uid: topic.userId,
+				title: topic.title,
+				content: topic.content,
+				cid: topic.categoryId,
+			}));
+			followerUid = await User.create({ username: &#039;topicFollower&#039;, password: &#039;123456&#039; });
+			await topics.follow(newTopic.tid, followerUid);
+
+			({ cid: moveCid } = await categories.create({
+				name: &#039;Test Category&#039;,
+				description: &#039;Test category created by testing script&#039;,
+			}));
+		});
+
+		it(&#039;should load topic tools&#039;, (done) =&gt; {
+			socketTopics.loadTopicTools({ uid: adminUid }, { tid: newTopic.tid }, (err, data) =&gt; {
+				assert.ifError(err);
+				assert(data);
+				done();
+			});
+		});
+
+		it(&#039;should delete the topic&#039;, async () =&gt; {
+			await apiTopics.delete({ uid: adminUid }, { tids: [newTopic.tid], cid: categoryObj.cid });
+			const deleted = await topics.getTopicField(newTopic.tid, &#039;deleted&#039;);
+			assert.strictEqual(deleted, 1);
+		});
+
+		it(&#039;should restore the topic&#039;, async () =&gt; {
+			await apiTopics.restore({ uid: adminUid }, { tids: [newTopic.tid], cid: categoryObj.cid });
+			const deleted = await topics.getTopicField(newTopic.tid, &#039;deleted&#039;);
+			assert.strictEqual(deleted, 0);
+		});
+
+		it(&#039;should lock topic&#039;, async () =&gt; {
+			await apiTopics.lock({ uid: adminUid }, { tids: [newTopic.tid], cid: categoryObj.cid });
+			const isLocked = await topics.isLocked(newTopic.tid);
+			assert(isLocked);
+		});
+
+		it(&#039;should unlock topic&#039;, async () =&gt; {
+			await apiTopics.unlock({ uid: adminUid }, { tids: [newTopic.tid], cid: categoryObj.cid });
+			const isLocked = await topics.isLocked(newTopic.tid);
+			assert(!isLocked);
+		});
+
+		it(&#039;should pin topic&#039;, async () =&gt; {
+			await apiTopics.pin({ uid: adminUid }, { tids: [newTopic.tid], cid: categoryObj.cid });
+			const pinned = await topics.getTopicField(newTopic.tid, &#039;pinned&#039;);
+			assert.strictEqual(pinned, 1);
+		});
+
+		it(&#039;should unpin topic&#039;, async () =&gt; {
+			await apiTopics.unpin({ uid: adminUid }, { tids: [newTopic.tid], cid: categoryObj.cid });
+			const pinned = await topics.getTopicField(newTopic.tid, &#039;pinned&#039;);
+			assert.strictEqual(pinned, 0);
+		});
+
+		it(&#039;should move all topics&#039;, (done) =&gt; {
+			socketTopics.moveAll({ uid: adminUid }, { cid: moveCid, currentCid: categoryObj.cid }, (err) =&gt; {
+				assert.ifError(err);
+				topics.getTopicField(newTopic.tid, &#039;cid&#039;, (err, cid) =&gt; {
+					assert.ifError(err);
+					assert.equal(cid, moveCid);
+					done();
+				});
+			});
+		});
+
+		it(&#039;should move a topic&#039;, (done) =&gt; {
+			socketTopics.move({ uid: adminUid }, { cid: categoryObj.cid, tids: [newTopic.tid] }, (err) =&gt; {
+				assert.ifError(err);
+				topics.getTopicField(newTopic.tid, &#039;cid&#039;, (err, cid) =&gt; {
+					assert.ifError(err);
+					assert.equal(cid, categoryObj.cid);
+					done();
+				});
+			});
+		});
+
+		it(&#039;should properly update sets when post is moved&#039;, async () =&gt; {
+			const cid1 = topic.categoryId;
+			const category = await categories.create({
+				name: &#039;move to this category&#039;,
+				description: &#039;Test category created by testing script&#039;,
+			});
+			const cid2 = category.cid;
+			const { topicData } = await topics.post({ uid: adminUid, title: &#039;topic1&#039;, content: &#039;topic 1 mainPost&#039;, cid: cid1 });
+			const tid1 = topicData.tid;
+			const previousPost = await topics.reply({ uid: adminUid, content: &#039;topic 1 reply 1&#039;, tid: tid1 });
+			const movedPost = await topics.reply({ uid: adminUid, content: &#039;topic 1 reply 2&#039;, tid: tid1 });
+
+			const { topicData: anotherTopic } = await topics.post({ uid: adminUid, title: &#039;topic2&#039;, content: &#039;topic 2 mainpost&#039;, cid: cid2 });
+			const tid2 = anotherTopic.tid;
+			const topic2LastReply = await topics.reply({ uid: adminUid, content: &#039;topic 2 reply 1&#039;, tid: tid2 });
+
+			async function checkCidSets(post1, post2) {
+				const [topicData, scores1, scores2, posts1, posts2] = await Promise.all([
+					topics.getTopicsFields([tid1, tid2], [&#039;lastposttime&#039;, &#039;postcount&#039;]),
+					db.sortedSetsScore([
+						`cid:${cid1}:tids`,
+						`cid:${cid1}:tids:lastposttime`,
+						`cid:${cid1}:tids:posts`,
+					], tid1),
+					db.sortedSetsScore([
+						`cid:${cid2}:tids`,
+						`cid:${cid2}:tids:lastposttime`,
+						`cid:${cid2}:tids:posts`,
+					], tid2),
+					db.getSortedSetRangeWithScores(`tid:${tid1}:posts`, 0, -1),
+					db.getSortedSetRangeWithScores(`tid:${tid2}:posts`, 0, -1),
+				]);
+				const assertMsg = `${JSON.stringify(posts1)}\n${JSON.stringify(posts2)}`;
+				assert.equal(topicData[0].postcount, scores1[2], assertMsg);
+				assert.equal(topicData[1].postcount, scores2[2], assertMsg);
+				assert.equal(topicData[0].lastposttime, post1.timestamp, assertMsg);
+				assert.equal(topicData[1].lastposttime, post2.timestamp, assertMsg);
+				assert.equal(topicData[0].lastposttime, scores1[0], assertMsg);
+				assert.equal(topicData[1].lastposttime, scores2[0], assertMsg);
+				assert.equal(topicData[0].lastposttime, scores1[1], assertMsg);
+				assert.equal(topicData[1].lastposttime, scores2[1], assertMsg);
+			}
+
+			await checkCidSets(movedPost, topic2LastReply);
+
+			let isMember = await db.isMemberOfSortedSets([`cid:${cid1}:pids`, `cid:${cid2}:pids`], movedPost.pid);
+			assert.deepEqual(isMember, [true, false]);
+
+			let categoryData = await categories.getCategoriesFields([cid1, cid2], [&#039;post_count&#039;]);
+			assert.equal(categoryData[0].post_count, 4);
+			assert.equal(categoryData[1].post_count, 2);
+
+			await topics.movePostToTopic(1, movedPost.pid, tid2);
+
+			await checkCidSets(previousPost, topic2LastReply);
+
+			isMember = await db.isMemberOfSortedSets([`cid:${cid1}:pids`, `cid:${cid2}:pids`], movedPost.pid);
+			assert.deepEqual(isMember, [false, true]);
+
+			categoryData = await categories.getCategoriesFields([cid1, cid2], [&#039;post_count&#039;]);
+			assert.equal(categoryData[0].post_count, 3);
+			assert.equal(categoryData[1].post_count, 3);
+		});
+
+		it(&#039;should fail to purge topic if user does not have privilege&#039;, async () =&gt; {
+			const topic1 = await topics.post({
+				uid: adminUid,
+				title: &#039;topic for purge test&#039;,
+				content: &#039;topic content&#039;,
+				cid: categoryObj.cid,
+			});
+			const tid1 = topic1.topicData.tid;
+			const globalModUid = await User.create({ username: &#039;global mod&#039; });
+			await groups.join(&#039;Global Moderators&#039;, globalModUid);
+			await privileges.categories.rescind([&#039;groups:purge&#039;], categoryObj.cid, &#039;Global Moderators&#039;);
+			try {
+				await apiTopics.purge({ uid: globalModUid }, { tids: [tid1], cid: categoryObj.cid });
+			} catch (err) {
+				assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+				await privileges.categories.give([&#039;groups:purge&#039;], categoryObj.cid, &#039;Global Moderators&#039;);
+				return;
+			}
+			assert(false);
+		});
+
+		it(&#039;should purge the topic&#039;, async () =&gt; {
+			await apiTopics.purge({ uid: adminUid }, { tids: [newTopic.tid], cid: categoryObj.cid });
+			const isMember = await db.isSortedSetMember(`uid:${followerUid}:followed_tids`, newTopic.tid);
+			assert.strictEqual(false, isMember);
+		});
+
+		it(&#039;should not allow user to restore their topic if it was deleted by an admin&#039;, async () =&gt; {
+			const result = await topics.post({
+				uid: fooUid,
+				title: &#039;topic for restore test&#039;,
+				content: &#039;topic content&#039;,
+				cid: categoryObj.cid,
+			});
+			await apiTopics.delete({ uid: adminUid }, { tids: [result.topicData.tid], cid: categoryObj.cid });
+			try {
+				await apiTopics.restore({ uid: fooUid }, { tids: [result.topicData.tid], cid: categoryObj.cid });
+			} catch (err) {
+				return assert.strictEqual(err.message, &#039;[[error:no-privileges]]&#039;);
+			}
+			assert(false);
+		});
+	});
+
+	describe(&#039;order pinned topics&#039;, () =&gt; {
+		let tid1;
+		let tid2;
+		let tid3;
+		before(async () =&gt; {
+			async function createTopic() {
+				return (await topics.post({
+					uid: topic.userId,
+					title: &#039;topic for test&#039;,
+					content: &#039;topic content&#039;,
+					cid: topic.categoryId,
+				})).topicData.tid;
+			}
+			tid1 = await createTopic();
+			tid2 = await createTopic();
+			tid3 = await createTopic();
+			await topics.tools.pin(tid1, adminUid);
+			// artificial timeout so pin time is different on redis sometimes scores are indentical
+			await sleep(5);
+			await topics.tools.pin(tid2, adminUid);
+		});
+
+		const socketTopics = require(&#039;../src/socket.io/topics&#039;);
+		it(&#039;should error with invalid data&#039;, (done) =&gt; {
+			socketTopics.orderPinnedTopics({ uid: adminUid }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should error with invalid data&#039;, (done) =&gt; {
+			socketTopics.orderPinnedTopics({ uid: adminUid }, [null, null], (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should error with unprivileged user&#039;, (done) =&gt; {
+			socketTopics.orderPinnedTopics({ uid: 0 }, { tid: tid1, order: 1 }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should not do anything if topics are not pinned&#039;, (done) =&gt; {
+			socketTopics.orderPinnedTopics({ uid: adminUid }, { tid: tid3, order: 1 }, (err) =&gt; {
+				assert.ifError(err);
+				db.isSortedSetMember(`cid:${topic.categoryId}:tids:pinned`, tid3, (err, isMember) =&gt; {
+					assert.ifError(err);
+					assert(!isMember);
+					done();
+				});
+			});
+		});
+
+		it(&#039;should order pinned topics&#039;, (done) =&gt; {
+			db.getSortedSetRevRange(`cid:${topic.categoryId}:tids:pinned`, 0, -1, (err, pinnedTids) =&gt; {
+				assert.ifError(err);
+				assert.equal(pinnedTids[0], tid2);
+				assert.equal(pinnedTids[1], tid1);
+				socketTopics.orderPinnedTopics({ uid: adminUid }, { tid: tid1, order: 0 }, (err) =&gt; {
+					assert.ifError(err);
+					db.getSortedSetRevRange(`cid:${topic.categoryId}:tids:pinned`, 0, -1, (err, pinnedTids) =&gt; {
+						assert.ifError(err);
+						assert.equal(pinnedTids[0], tid1);
+						assert.equal(pinnedTids[1], tid2);
+						done();
+					});
+				});
+			});
+		});
+	});
+
+
+	describe(&#039;.ignore&#039;, () =&gt; {
+		let newTid;
+		let uid;
+		let newTopic;
+		before(async () =&gt; {
+			uid = topic.userId;
+			const result = await topics.post({ uid: topic.userId, title: &#039;Topic to be ignored&#039;, content: &#039;Just ignore me, please!&#039;, cid: topic.categoryId });
+			newTopic = result.topicData;
+			newTid = newTopic.tid;
+			await topics.markUnread(newTid, uid);
+		});
+
+		it(&#039;should not appear in the unread list&#039;, async () =&gt; {
+			await topics.ignore(newTid, uid);
+			const { topics: topicData } = await topics.getUnreadTopics({ cid: 0, uid: uid, start: 0, stop: -1, filter: &#039;&#039; });
+			const tids = topicData.map(topic =&gt; topic.tid);
+			assert.equal(tids.indexOf(newTid), -1, &#039;The topic appeared in the unread list.&#039;);
+		});
+
+		it(&#039;should not appear as unread in the recent list&#039;, async () =&gt; {
+			await topics.ignore(newTid, uid);
+			const results = await topics.getLatestTopics({
+				uid: uid,
+				start: 0,
+				stop: -1,
+				term: &#039;year&#039;,
+			});
+
+			const { topics: topicsData } = results;
+			let topic;
+			let i;
+			for (i = 0; i &lt; topicsData.length; i += 1) {
+				if (topicsData[i].tid === parseInt(newTid, 10)) {
+					assert.equal(false, topicsData[i].unread, &#039;ignored topic was marked as unread in recent list&#039;);
+					return;
+				}
+			}
+			assert.ok(topic, &#039;topic didn\&#039;t appear in the recent list&#039;);
+		});
+
+		it(&#039;should appear as unread again when marked as following&#039;, async () =&gt; {
+			await topics.ignore(newTid, uid);
+			await topics.follow(newTid, uid);
+			const results = await topics.getUnreadTopics({ cid: 0, uid: uid, start: 0, stop: -1, filter: &#039;&#039; });
+			const tids = results.topics.map(topic =&gt; topic.tid);
+			assert.ok(tids.includes(newTid), &#039;The topic did not appear in the unread list.&#039;);
+		});
+	});
+
+	describe(&#039;.fork&#039;, () =&gt; {
+		let newTopic;
+		const replies = [];
+		let topicPids;
+		const originalBookmark = 6;
+		async function postReply() {
+			const result = await topics.reply({ uid: topic.userId, content: `test post ${replies.length}`, tid: newTopic.tid });
+			assert.ok(result);
+			replies.push(result);
+		}
+
+		before(async () =&gt; {
+			await groups.join(&#039;administrators&#039;, topic.userId);
+			({ topicData: newTopic } = await topics.post({
+				uid: topic.userId,
+				title: topic.title,
+				content: topic.content,
+				cid: topic.categoryId,
+			}));
+			for (let i = 0; i &lt; 12; i++) {
+				// eslint-disable-next-line no-await-in-loop
+				await postReply();
+			}
+			topicPids = replies.map(reply =&gt; reply.pid);
+			await socketTopics.bookmark({ uid: topic.userId }, { tid: newTopic.tid, index: originalBookmark });
+		});
+
+		it(&#039;should fail with invalid data&#039;, (done) =&gt; {
+			socketTopics.bookmark({ uid: topic.userId }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should have 12 replies&#039;, (done) =&gt; {
+			assert.equal(12, replies.length);
+			done();
+		});
+
+		it(&#039;should fail with invalid data&#039;, (done) =&gt; {
+			socketTopics.createTopicFromPosts({ uid: 0 }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:not-logged-in]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should fail with invalid data&#039;, (done) =&gt; {
+			socketTopics.createTopicFromPosts({ uid: adminUid }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should not update the user\&#039;s bookmark&#039;, async () =&gt; {
+			await socketTopics.createTopicFromPosts({ uid: topic.userId }, {
+				title: &#039;Fork test, no bookmark update&#039;,
+				pids: topicPids.slice(-2),
+				fromTid: newTopic.tid,
+			});
+			const bookmark = await topics.getUserBookmark(newTopic.tid, topic.userId);
+			assert.equal(originalBookmark, bookmark);
+		});
+
+		it(&#039;should update the user\&#039;s bookmark &#039;, async () =&gt; {
+			await topics.createTopicFromPosts(
+				topic.userId,
+				&#039;Fork test, no bookmark update&#039;,
+				topicPids.slice(1, 3),
+				newTopic.tid,
+			);
+			const bookmark = await topics.getUserBookmark(newTopic.tid, topic.userId);
+			assert.equal(originalBookmark - 2, bookmark);
+		});
+
+		it(&#039;should properly update topic vote count after forking&#039;, async () =&gt; {
+			const result = await topics.post({ uid: fooUid, cid: categoryObj.cid, title: &#039;fork vote test&#039;, content: &#039;main post&#039; });
+			const reply1 = await topics.reply({ tid: result.topicData.tid, uid: fooUid, content: &#039;test reply 1&#039; });
+			const reply2 = await topics.reply({ tid: result.topicData.tid, uid: fooUid, content: &#039;test reply 2&#039; });
+			const reply3 = await topics.reply({ tid: result.topicData.tid, uid: fooUid, content: &#039;test reply 3&#039; });
+			await posts.upvote(result.postData.pid, adminUid);
+			await posts.upvote(reply1.pid, adminUid);
+			assert.strictEqual(await db.sortedSetScore(&#039;topics:votes&#039;, result.topicData.tid), 1);
+			assert.strictEqual(await db.sortedSetScore(`cid:${categoryObj.cid}:tids:votes`, result.topicData.tid), 1);
+			const newTopic = await topics.createTopicFromPosts(adminUid, &#039;Fork test, vote update&#039;, [reply1.pid, reply2.pid], result.topicData.tid);
+
+			assert.strictEqual(await db.sortedSetScore(&#039;topics:votes&#039;, newTopic.tid), 1);
+			assert.strictEqual(await db.sortedSetScore(`cid:${categoryObj.cid}:tids:votes`, newTopic.tid), 1);
+			assert.strictEqual(await topics.getTopicField(newTopic.tid, &#039;upvotes&#039;), 1);
+		});
+	});
+
+	describe(&#039;controller&#039;, () =&gt; {
+		let topicData;
+
+		before((done) =&gt; {
+			topics.post({
+				uid: topic.userId,
+				title: &#039;topic for controller test&#039;,
+				content: &#039;topic content&#039;,
+				cid: topic.categoryId,
+				thumb: &#039;http://i.imgur.com/64iBdBD.jpg&#039;,
+			}, (err, result) =&gt; {
+				assert.ifError(err);
+				assert.ok(result);
+				topicData = result.topicData;
+				done();
+			});
+		});
+
+		it(&#039;should load topic&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/topic/${topicData.slug}`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load topic api data&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/${topicData.slug}`);
+			assert.equal(response.statusCode, 200);
+			assert.strictEqual(body._header.tags.meta.find(t =&gt; t.name === &#039;description&#039;).content, &#039;topic content&#039;);
+			assert.strictEqual(body._header.tags.meta.find(t =&gt; t.property === &#039;og:description&#039;).content, &#039;topic content&#039;);
+		});
+
+		it(&#039;should 404 if post index is invalid&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/topic/${topicData.slug}/derp`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should 404 if topic does not exist&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/topic/123123/does-not-exist`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should 401 if not allowed to read as guest&#039;, async () =&gt; {
+			const privileges = require(&#039;../src/privileges&#039;);
+			await privileges.categories.rescind([&#039;groups:topics:read&#039;], topicData.cid, &#039;guests&#039;);
+
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/${topicData.slug}`);
+			assert.equal(response.statusCode, 401);
+			assert(body);
+			await privileges.categories.give([&#039;groups:topics:read&#039;], topicData.cid, &#039;guests&#039;);
+		});
+
+		it(&#039;should redirect to correct topic if slug is missing&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/topic/${topicData.tid}/herpderp/1?page=2`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should redirect if post index is out of range&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/${topicData.slug}/-1`);
+			assert.equal(response.statusCode, 200);
+			assert.equal(response.headers[&#039;x-redirect&#039;], `/topic/${topicData.tid}/topic-for-controller-test`);
+			assert.equal(body, `/topic/${topicData.tid}/topic-for-controller-test`);
+		});
+
+		it(&#039;should 404 if page is out of bounds&#039;, async () =&gt; {
+			const meta = require(&#039;../src/meta&#039;);
+			meta.config.usePagination = 1;
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/topic/${topicData.slug}?page=100`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should mark topic read&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/topic/${topicData.slug}`, {
+				jar: adminJar,
+			});
+			assert.equal(response.statusCode, 200);
+			const hasRead = await topics.hasReadTopics([topicData.tid], adminUid);
+			assert.equal(hasRead[0], true);
+		});
+
+		it(&#039;should 404 if tid is not a number&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/teaser/nan`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should 403 if cant read&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/teaser/${123123}`);
+			assert.equal(response.statusCode, 403);
+			assert.equal(body, &#039;[[error:no-privileges]]&#039;);
+		});
+
+		it(&#039;should load topic teaser&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/teaser/${topicData.tid}`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+			assert.equal(body.tid, topicData.tid);
+			assert.equal(body.content, &#039;topic content&#039;);
+			assert(body.user);
+			assert(body.topic);
+			assert(body.category);
+		});
+
+
+		it(&#039;should 404 if tid is not a number&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/pagination/nan`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should 404 if tid does not exist&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/pagination/1231231`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should load pagination&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/pagination/${topicData.tid}`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+			assert.deepEqual(body.pagination, {
+				prev: { page: 1, active: false },
+				next: { page: 1, active: false },
+				first: { page: 1, active: true },
+				last: { page: 1, active: true },
+				rel: [],
+				pages: [],
+				currentPage: 1,
+				pageCount: 1,
+			});
+		});
+	});
+
+
+	describe(&#039;infinitescroll&#039;, () =&gt; {
+		const socketTopics = require(&#039;../src/socket.io/topics&#039;);
+		let tid;
+		before((done) =&gt; {
+			topics.post({
+				uid: topic.userId,
+				title: topic.title,
+				content: topic.content,
+				cid: topic.categoryId,
+			}, (err, result) =&gt; {
+				assert.ifError(err);
+				tid = result.topicData.tid;
+				done();
+			});
+		});
+
+		it(&#039;should error with invalid data&#039;, (done) =&gt; {
+			socketTopics.loadMore({ uid: adminUid }, {}, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should infinite load topic posts&#039;, (done) =&gt; {
+			socketTopics.loadMore({ uid: adminUid }, { tid: tid, after: 0, count: 10 }, (err, data) =&gt; {
+				assert.ifError(err);
+				assert(data.posts);
+				assert(data.privileges);
+				done();
+			});
+		});
+	});
+
+	describe(&#039;suggested topics&#039;, () =&gt; {
+		let tid1;
+		let tid3;
+		before(async () =&gt; {
+			const topic1 = await topics.post({ uid: adminUid, tags: [&#039;nodebb&#039;], title: &#039;topic title 1&#039;, content: &#039;topic 1 content&#039;, cid: topic.categoryId });
+			const topic2 = await topics.post({ uid: adminUid, tags: [&#039;nodebb&#039;], title: &#039;topic title 2&#039;, content: &#039;topic 2 content&#039;, cid: topic.categoryId });
+			const topic3 = await topics.post({ uid: adminUid, tags: [], title: &#039;topic title 3&#039;, content: &#039;topic 3 content&#039;, cid: topic.categoryId });
+			tid1 = topic1.topicData.tid;
+			tid3 = topic3.topicData.tid;
+		});
+
+		it(&#039;should return suggested topics&#039;, (done) =&gt; {
+			topics.getSuggestedTopics(tid1, adminUid, 0, -1, (err, topics) =&gt; {
+				assert.ifError(err);
+				assert(Array.isArray(topics));
+				done();
+			});
+		});
+
+		it(&#039;should return suggested topics&#039;, (done) =&gt; {
+			topics.getSuggestedTopics(tid3, adminUid, 0, 2, (err, topics) =&gt; {
+				assert.ifError(err);
+				assert(Array.isArray(topics));
+				done();
+			});
+		});
+	});
+
+	describe(&#039;unread&#039;, () =&gt; {
+		const socketTopics = require(&#039;../src/socket.io/topics&#039;);
+		let tid;
+		let uid;
+		before(async () =&gt; {
+			const { topicData } = await topics.post({ uid: topic.userId, title: &#039;unread topic&#039;, content: &#039;unread topic content&#039;, cid: topic.categoryId });
+			uid = await User.create({ username: &#039;regularJoe&#039; });
+			tid = topicData.tid;
+		});
+
+		it(&#039;should fail with invalid data&#039;, async () =&gt; {
+			await assert.rejects(
+				apiTopics.markUnread({ uid: adminUid }, { tid: null }),
+				{ message: &#039;[[error:invalid-data]]&#039; }
+			);
+		});
+
+		it(&#039;should fail if topic does not exist&#039;, async () =&gt; {
+			await assert.rejects(
+				apiTopics.markUnread({ uid: adminUid }, { tid: 1231082 }),
+				{ message: &#039;[[error:no-topic]]&#039; }
+			);
+		});
+
+		it(&#039;should mark topic unread&#039;, async () =&gt; {
+			await apiTopics.markUnread({ uid: adminUid }, { tid });
+			const hasRead = await topics.hasReadTopic(tid, adminUid);
+			assert.strictEqual(hasRead, false);
+		});
+
+		it(&#039;should fail with invalid data&#039;, (done) =&gt; {
+			socketTopics.markAsRead({ uid: 0 }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should mark topic read&#039;, (done) =&gt; {
+			socketTopics.markAsRead({ uid: adminUid }, [tid], (err) =&gt; {
+				assert.ifError(err);
+				topics.hasReadTopic(tid, adminUid, (err, hasRead) =&gt; {
+					assert.ifError(err);
+					assert(hasRead);
+					done();
+				});
+			});
+		});
+
+		it(&#039;should fail with invalid data&#039;, (done) =&gt; {
+			socketTopics.markTopicNotificationsRead({ uid: 0 }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should mark topic notifications read&#039;, async () =&gt; {
+			await apiTopics.follow({ uid: adminUid }, { tid: tid });
+			const data = await topics.reply({ uid: uid, timestamp: Date.now(), content: &#039;some content&#039;, tid: tid });
+			await sleep(2500);
+			let count = await User.notifications.getUnreadCount(adminUid);
+			assert.strictEqual(count, 1);
+			await socketTopics.markTopicNotificationsRead({ uid: adminUid }, [tid]);
+			count = await User.notifications.getUnreadCount(adminUid);
+			assert.strictEqual(count, 0);
+		});
+
+		it(&#039;should fail with invalid data&#039;, (done) =&gt; {
+			socketTopics.markAllRead({ uid: 0 }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-uid]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should mark all read&#039;, (done) =&gt; {
+			socketTopics.markUnread({ uid: adminUid }, tid, (err) =&gt; {
+				assert.ifError(err);
+				socketTopics.markAllRead({ uid: adminUid }, {}, (err) =&gt; {
+					assert.ifError(err);
+					topics.hasReadTopic(tid, adminUid, (err, hasRead) =&gt; {
+						assert.ifError(err);
+						assert(hasRead);
+						done();
+					});
+				});
+			});
+		});
+
+		it(&#039;should mark category topics read&#039;, (done) =&gt; {
+			socketTopics.markUnread({ uid: adminUid }, tid, (err) =&gt; {
+				assert.ifError(err);
+				socketTopics.markCategoryTopicsRead({ uid: adminUid }, topic.categoryId, (err) =&gt; {
+					assert.ifError(err);
+					topics.hasReadTopic(tid, adminUid, (err, hasRead) =&gt; {
+						assert.ifError(err);
+						assert(hasRead);
+						done();
+					});
+				});
+			});
+		});
+
+		it(&#039;should fail with invalid data&#039;, async () =&gt; {
+			await assert.rejects(
+				apiTopics.bump({ uid: adminUid }, { tid: null }),
+				{ message: &#039;[[error:invalid-tid]]&#039; }
+			);
+		});
+
+		it(&#039;should fail with invalid data&#039;, async () =&gt; {
+			await assert.rejects(
+				apiTopics.bump({ uid: 0 }, { tid: [tid] }),
+				{ message: &#039;[[error:no-privileges]]&#039; }
+			);
+		});
+
+		it(&#039;should fail if user is not admin&#039;, async () =&gt; {
+			await assert.rejects(
+				apiTopics.bump({ uid: uid }, { tid }),
+				{ message: &#039;[[error:no-privileges]]&#039; }
+			);
+		});
+
+		it(&#039;should mark topic unread for everyone&#039;, async () =&gt; {
+			await apiTopics.bump({ uid: adminUid }, { tid });
+			const adminRead = await topics.hasReadTopic(tid, adminUid);
+			const regularRead = await topics.hasReadTopic(tid, uid);
+
+			assert.equal(adminRead, false);
+			assert.equal(regularRead, false);
+		});
+
+		it(&#039;should not do anything if tids is empty array&#039;, (done) =&gt; {
+			socketTopics.markAsRead({ uid: adminUid }, [], (err, markedRead) =&gt; {
+				assert.ifError(err);
+				assert(!markedRead);
+				done();
+			});
+		});
+
+		it(&#039;should not return topics in category you cant read&#039;, async () =&gt; {
+			const { cid: privateCid } = await categories.create({
+				name: &#039;private category&#039;,
+				description: &#039;private category&#039;,
+			});
+			privileges.categories.rescind([&#039;groups:topics:read&#039;], privateCid, &#039;registered-users&#039;);
+
+			const { topicData } = await topics.post({ uid: adminUid, title: &#039;topic in private category&#039;, content: &#039;registered-users cant see this&#039;, cid: privateCid });
+			const privateTid = topicData.tid;
+
+			const unreadTids = (await topics.getUnreadTids({ uid: uid })).map(String);
+			assert(!unreadTids.includes(String(privateTid)));
+		});
+
+		it(&#039;should not return topics in category you ignored/not watching&#039;, async () =&gt; {
+			const category = await categories.create({
+				name: &#039;ignored category&#039;,
+				description: &#039;ignored category&#039;,
+			});
+			const ignoredCid = category.cid;
+			await privileges.categories.rescind([&#039;groups:topics:read&#039;], ignoredCid, &#039;registered-users&#039;);
+
+			const { topicData } = await topics.post({ uid: adminUid, title: &#039;topic in private category&#039;, content: &#039;registered-users cant see this&#039;, cid: ignoredCid });
+			const { tid } = topicData;
+
+			await User.ignoreCategory(uid, ignoredCid);
+			const unreadTids = (await topics.getUnreadTids({ uid: uid })).map(String);
+			assert(!unreadTids.includes(String(tid)));
+		});
+
+		it(&#039;should not return topic as unread if new post is from blocked user&#039;, async () =&gt; {
+			const { topicData } = await topics.post({ uid: adminUid, title: &#039;will not get as unread&#039;, content: &#039;not unread&#039;, cid: categoryObj.cid });
+			const blockedUid = await User.create({ username: &#039;blockedunread&#039; });
+			await User.blocks.add(blockedUid, adminUid);
+			await topics.reply({ uid: blockedUid, content: &#039;post from blocked user&#039;, tid: topic.tid });
+
+			const unreadTids = await topics.getUnreadTids({ cid: 0, uid: adminUid });
+			assert(!unreadTids.includes(topicData.tid));
+			await User.blocks.remove(blockedUid, adminUid);
+		});
+
+		it(&#039;should not return topic as unread if topic is deleted&#039;, async () =&gt; {
+			const uid = await User.create({ username: &#039;regularJoe&#039; });
+			const result = await topics.post({ uid: adminUid, title: &#039;deleted unread&#039;, content: &#039;not unread&#039;, cid: categoryObj.cid });
+			await topics.delete(result.topicData.tid, adminUid);
+			const unreadTids = await topics.getUnreadTids({ cid: 0, uid: uid });
+			assert(!unreadTids.includes(result.topicData.tid));
+		});
+	});
+
+	describe(&#039;tags&#039;, () =&gt; {
+		const socketTopics = require(&#039;../src/socket.io/topics&#039;);
+		const socketAdmin = require(&#039;../src/socket.io/admin&#039;);
+
+		before(async () =&gt; {
+			await topics.post({ uid: adminUid, tags: [&#039;php&#039;, &#039;nosql&#039;, &#039;psql&#039;, &#039;nodebb&#039;, &#039;node icon&#039;], title: &#039;topic title 1&#039;, content: &#039;topic 1 content&#039;, cid: topic.categoryId });
+			await topics.post({ uid: adminUid, tags: [&#039;javascript&#039;, &#039;mysql&#039;, &#039;python&#039;, &#039;nodejs&#039;], title: &#039;topic title 2&#039;, content: &#039;topic 2 content&#039;, cid: topic.categoryId });
+		});
+
+		it(&#039;should return empty array if query is falsy&#039;, (done) =&gt; {
+			socketTopics.autocompleteTags({ uid: adminUid }, { query: &#039;&#039; }, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.deepEqual([], data);
+				done();
+			});
+		});
+
+		it(&#039;should autocomplete tags&#039;, (done) =&gt; {
+			socketTopics.autocompleteTags({ uid: adminUid }, { query: &#039;p&#039; }, (err, data) =&gt; {
+				assert.ifError(err);
+				[&#039;php&#039;, &#039;psql&#039;, &#039;python&#039;].forEach((tag) =&gt; {
+					assert.notEqual(data.indexOf(tag), -1);
+				});
+				done();
+			});
+		});
+
+		it(&#039;should return empty array if query is falsy&#039;, (done) =&gt; {
+			socketTopics.searchTags({ uid: adminUid }, { query: &#039;&#039; }, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.deepEqual([], data);
+				done();
+			});
+		});
+
+		it(&#039;should search tags&#039;, (done) =&gt; {
+			socketTopics.searchTags({ uid: adminUid }, { query: &#039;no&#039; }, (err, data) =&gt; {
+				assert.ifError(err);
+				[&#039;nodebb&#039;, &#039;nodejs&#039;, &#039;nosql&#039;].forEach((tag) =&gt; {
+					assert.notEqual(data.indexOf(tag), -1);
+				});
+				done();
+			});
+		});
+
+		it(&#039;should return empty array if query is falsy&#039;, (done) =&gt; {
+			socketTopics.searchAndLoadTags({ uid: adminUid }, { query: &#039;&#039; }, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.equal(data.matchCount, 0);
+				assert.equal(data.pageCount, 1);
+				assert.deepEqual(data.tags, []);
+				done();
+			});
+		});
+
+		it(&#039;should search and load tags&#039;, (done) =&gt; {
+			socketTopics.searchAndLoadTags({ uid: adminUid }, { query: &#039;no&#039; }, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.equal(data.matchCount, 4);
+				assert.equal(data.pageCount, 1);
+				const tagData = [
+					{ value: &#039;nodebb&#039;, valueEscaped: &#039;nodebb&#039;, valueEncoded: &#039;nodebb&#039;, score: 3, class: &#039;nodebb&#039; },
+					{ value: &#039;node icon&#039;, valueEscaped: &#039;node icon&#039;, valueEncoded: &#039;node%20icon&#039;, score: 1, class: &#039;node-icon&#039; },
+					{ value: &#039;nodejs&#039;, valueEscaped: &#039;nodejs&#039;, valueEncoded: &#039;nodejs&#039;, score: 1, class: &#039;nodejs&#039; },
+					{ value: &#039;nosql&#039;, valueEscaped: &#039;nosql&#039;, valueEncoded: &#039;nosql&#039;, score: 1, class: &#039;nosql&#039; },
+				];
+				assert.deepEqual(data.tags, tagData);
+
+				done();
+			});
+		});
+
+		it(&#039;should return error if data is invalid&#039;, (done) =&gt; {
+			socketTopics.loadMoreTags({ uid: adminUid }, { after: &#039;asd&#039; }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should load more tags&#039;, (done) =&gt; {
+			socketTopics.loadMoreTags({ uid: adminUid }, { after: 0 }, (err, data) =&gt; {
+				assert.ifError(err);
+				assert(Array.isArray(data.tags));
+				assert.equal(data.nextStart, 100);
+				done();
+			});
+		});
+
+		it(&#039;should error if data is invalid&#039;, (done) =&gt; {
+			socketAdmin.tags.create({ uid: adminUid }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should error if tag is invalid&#039;, (done) =&gt; {
+			socketAdmin.tags.create({ uid: adminUid }, { tag: &#039;&#039; }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-tag]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should error if tag is too short&#039;, (done) =&gt; {
+			socketAdmin.tags.create({ uid: adminUid }, { tag: &#039;as&#039; }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:tag-too-short]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should create empty tag&#039;, (done) =&gt; {
+			socketAdmin.tags.create({ uid: adminUid }, { tag: &#039;emptytag&#039; }, (err) =&gt; {
+				assert.ifError(err);
+				db.sortedSetScore(&#039;tags:topic:count&#039;, &#039;emptytag&#039;, (err, score) =&gt; {
+					assert.ifError(err);
+					assert.equal(score, 0);
+					done();
+				});
+			});
+		});
+
+		it(&#039;should do nothing if tag exists&#039;, (done) =&gt; {
+			socketAdmin.tags.create({ uid: adminUid }, { tag: &#039;emptytag&#039; }, (err) =&gt; {
+				assert.ifError(err);
+				db.sortedSetScore(&#039;tags:topic:count&#039;, &#039;emptytag&#039;, (err, score) =&gt; {
+					assert.ifError(err);
+					assert.equal(score, 0);
+					done();
+				});
+			});
+		});
+
+
+		it(&#039;should rename tags&#039;, async () =&gt; {
+			const result1 = await topics.post({ uid: adminUid, tags: [&#039;plugins&#039;], title: &#039;topic tagged with plugins&#039;, content: &#039;topic 1 content&#039;, cid: topic.categoryId });
+			const result2 = await topics.post({ uid: adminUid, tags: [&#039;plugin&#039;], title: &#039;topic tagged with plugin&#039;, content: &#039;topic 2 content&#039;, cid: topic.categoryId });
+			const data1 = await topics.getTopicData(result2.topicData.tid);
+
+			await socketAdmin.tags.rename({ uid: adminUid }, [{
+				value: &#039;plugin&#039;,
+				newName: &#039;plugins&#039;,
+			}]);
+
+			const tids = await topics.getTagTids(&#039;plugins&#039;, 0, -1);
+			assert.strictEqual(tids.length, 2);
+			const tags = await topics.getTopicTags(result2.topicData.tid);
+
+			const data = await topics.getTopicData(result2.topicData.tid);
+			assert.strictEqual(tags.length, 1);
+			assert.strictEqual(tags[0], &#039;plugins&#039;);
+		});
+
+		it(&#039;should return related topics&#039;, (done) =&gt; {
+			const meta = require(&#039;../src/meta&#039;);
+			meta.config.maximumRelatedTopics = 2;
+			const topicData = {
+				tags: [{ value: &#039;javascript&#039; }],
+			};
+			topics.getRelatedTopics(topicData, 0, (err, data) =&gt; {
+				assert.ifError(err);
+				assert(Array.isArray(data));
+				assert.equal(data[0].title, &#039;topic title 2&#039;);
+				meta.config.maximumRelatedTopics = 0;
+				done();
+			});
+		});
+
+		it(&#039;should return error with invalid data&#039;, (done) =&gt; {
+			socketAdmin.tags.deleteTags({ uid: adminUid }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should do nothing if arrays is empty&#039;, (done) =&gt; {
+			socketAdmin.tags.deleteTags({ uid: adminUid }, { tags: [] }, (err) =&gt; {
+				assert.ifError(err);
+				done();
+			});
+		});
+
+		it(&#039;should delete tags&#039;, (done) =&gt; {
+			socketAdmin.tags.create({ uid: adminUid }, { tag: &#039;emptytag2&#039; }, (err) =&gt; {
+				assert.ifError(err);
+				socketAdmin.tags.deleteTags({ uid: adminUid }, { tags: [&#039;emptytag&#039;, &#039;emptytag2&#039;, &#039;nodebb&#039;, &#039;nodejs&#039;] }, (err) =&gt; {
+					assert.ifError(err);
+					db.getObjects([&#039;tag:emptytag&#039;, &#039;tag:emptytag2&#039;], (err, data) =&gt; {
+						assert.ifError(err);
+						assert(!data[0]);
+						assert(!data[1]);
+						done();
+					});
+				});
+			});
+		});
+
+		it(&#039;should only delete one tag from topic&#039;, async () =&gt; {
+			const result1 = await topics.post({ uid: adminUid, tags: [&#039;deleteme1&#039;, &#039;deleteme2&#039;, &#039;deleteme3&#039;], title: &#039;topic tagged with plugins&#039;, content: &#039;topic 1 content&#039;, cid: topic.categoryId });
+			await topics.deleteTag(&#039;deleteme2&#039;);
+			const topicData = await topics.getTopicData(result1.topicData.tid);
+			const tags = topicData.tags.map(t =&gt; t.value);
+			assert.deepStrictEqual(tags, [&#039;deleteme1&#039;, &#039;deleteme3&#039;]);
+		});
+
+		it(&#039;should delete tag&#039;, (done) =&gt; {
+			topics.deleteTag(&#039;javascript&#039;, (err) =&gt; {
+				assert.ifError(err);
+				db.getObject(&#039;tag:javascript&#039;, (err, data) =&gt; {
+					assert.ifError(err);
+					assert(!data);
+					done();
+				});
+			});
+		});
+
+		it(&#039;should delete category tag as well&#039;, async () =&gt; {
+			const category = await categories.create({ name: &#039;delete category&#039; });
+			const { cid } = category;
+			await topics.post({ uid: adminUid, tags: [&#039;willbedeleted&#039;, &#039;notthis&#039;], title: &#039;tag topic&#039;, content: &#039;topic 1 content&#039;, cid: cid });
+			let categoryTags = await topics.getCategoryTags(cid, 0, -1);
+			assert(categoryTags.includes(&#039;willbedeleted&#039;));
+			assert(categoryTags.includes(&#039;notthis&#039;));
+			await topics.deleteTags([&#039;willbedeleted&#039;]);
+			categoryTags = await topics.getCategoryTags(cid, 0, -1);
+			assert(!categoryTags.includes(&#039;willbedeleted&#039;));
+			assert(categoryTags.includes(&#039;notthis&#039;));
+		});
+
+		it(&#039;should add and remove tags from topics properly&#039;, async () =&gt; {
+			const category = await categories.create({ name: &#039;add/remove category&#039; });
+			const { cid } = category;
+			const result = await topics.post({ uid: adminUid, tags: [&#039;tag4&#039;, &#039;tag2&#039;, &#039;tag1&#039;, &#039;tag3&#039;], title: &#039;tag topic&#039;, content: &#039;topic 1 content&#039;, cid: cid });
+			const { tid } = result.topicData;
+
+			let tags = await topics.getTopicTags(tid);
+			let categoryTags = await topics.getCategoryTags(cid, 0, -1);
+			assert.deepStrictEqual(tags.sort(), [&#039;tag1&#039;, &#039;tag2&#039;, &#039;tag3&#039;, &#039;tag4&#039;]);
+			assert.deepStrictEqual(categoryTags.sort(), [&#039;tag1&#039;, &#039;tag2&#039;, &#039;tag3&#039;, &#039;tag4&#039;]);
+
+			await topics.addTags([&#039;tag7&#039;, &#039;tag6&#039;, &#039;tag5&#039;], [tid]);
+			tags = await topics.getTopicTags(tid);
+			categoryTags = await topics.getCategoryTags(cid, 0, -1);
+			assert.deepStrictEqual(tags.sort(), [&#039;tag1&#039;, &#039;tag2&#039;, &#039;tag3&#039;, &#039;tag4&#039;, &#039;tag5&#039;, &#039;tag6&#039;, &#039;tag7&#039;]);
+			assert.deepStrictEqual(categoryTags.sort(), [&#039;tag1&#039;, &#039;tag2&#039;, &#039;tag3&#039;, &#039;tag4&#039;, &#039;tag5&#039;, &#039;tag6&#039;, &#039;tag7&#039;]);
+
+			await topics.removeTags([&#039;tag1&#039;, &#039;tag3&#039;, &#039;tag5&#039;, &#039;tag7&#039;], [tid]);
+			tags = await topics.getTopicTags(tid);
+			categoryTags = await topics.getCategoryTags(cid, 0, -1);
+			assert.deepStrictEqual(tags.sort(), [&#039;tag2&#039;, &#039;tag4&#039;, &#039;tag6&#039;]);
+			assert.deepStrictEqual(categoryTags.sort(), [&#039;tag2&#039;, &#039;tag4&#039;, &#039;tag6&#039;]);
+		});
+
+		it(&#039;should respect minTags&#039;, async () =&gt; {
+			const oldValue = meta.config.minimumTagsPerTopic;
+			meta.config.minimumTagsPerTopic = 2;
+			let err;
+			try {
+				await topics.post({ uid: adminUid, tags: [&#039;tag4&#039;], title: &#039;tag topic&#039;, content: &#039;topic 1 content&#039;, cid: topic.categoryId });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.equal(err.message, `[[error:not-enough-tags, ${meta.config.minimumTagsPerTopic}]]`);
+			meta.config.minimumTagsPerTopic = oldValue;
+		});
+
+		it(&#039;should respect maxTags&#039;, async () =&gt; {
+			const oldValue = meta.config.maximumTagsPerTopic;
+			meta.config.maximumTagsPerTopic = 2;
+			let err;
+			try {
+				await topics.post({ uid: adminUid, tags: [&#039;tag1&#039;, &#039;tag2&#039;, &#039;tag3&#039;], title: &#039;tag topic&#039;, content: &#039;topic 1 content&#039;, cid: topic.categoryId });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.equal(err.message, `[[error:too-many-tags, ${meta.config.maximumTagsPerTopic}]]`);
+			meta.config.maximumTagsPerTopic = oldValue;
+		});
+
+		it(&#039;should respect minTags per category&#039;, async () =&gt; {
+			const minTags = 2;
+			await categories.setCategoryField(topic.categoryId, &#039;minTags&#039;, minTags);
+			let err;
+			try {
+				await topics.post({ uid: adminUid, tags: [&#039;tag4&#039;], title: &#039;tag topic&#039;, content: &#039;topic 1 content&#039;, cid: topic.categoryId });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.equal(err.message, `[[error:not-enough-tags, ${minTags}]]`);
+			await db.deleteObjectField(`category:${topic.categoryId}`, &#039;minTags&#039;);
+		});
+
+		it(&#039;should respect maxTags per category&#039;, async () =&gt; {
+			const maxTags = 2;
+			await categories.setCategoryField(topic.categoryId, &#039;maxTags&#039;, maxTags);
+			let err;
+			try {
+				await topics.post({ uid: adminUid, tags: [&#039;tag1&#039;, &#039;tag2&#039;, &#039;tag3&#039;], title: &#039;tag topic&#039;, content: &#039;topic 1 content&#039;, cid: topic.categoryId });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.equal(err.message, `[[error:too-many-tags, ${maxTags}]]`);
+			await db.deleteObjectField(`category:${topic.categoryId}`, &#039;maxTags&#039;);
+		});
+
+		it(&#039;should create and delete category tags properly&#039;, async () =&gt; {
+			const category = await categories.create({ name: &#039;tag category 2&#039; });
+			const { cid } = category;
+			const title = &#039;test title&#039;;
+			const postResult = await topics.post({ uid: adminUid, tags: [&#039;cattag1&#039;, &#039;cattag2&#039;, &#039;cattag3&#039;], title: title, content: &#039;topic 1 content&#039;, cid: cid });
+			await topics.post({ uid: adminUid, tags: [&#039;cattag1&#039;, &#039;cattag2&#039;], title: title, content: &#039;topic 1 content&#039;, cid: cid });
+			await topics.post({ uid: adminUid, tags: [&#039;cattag1&#039;], title: title, content: &#039;topic 1 content&#039;, cid: cid });
+			let result = await topics.getCategoryTagsData(cid, 0, -1);
+			assert.deepStrictEqual(result, [
+				{ value: &#039;cattag1&#039;, score: 3, valueEscaped: &#039;cattag1&#039;, valueEncoded: &#039;cattag1&#039;, class: &#039;cattag1&#039; },
+				{ value: &#039;cattag2&#039;, score: 2, valueEscaped: &#039;cattag2&#039;, valueEncoded: &#039;cattag2&#039;, class: &#039;cattag2&#039; },
+				{ value: &#039;cattag3&#039;, score: 1, valueEscaped: &#039;cattag3&#039;, valueEncoded: &#039;cattag3&#039;, class: &#039;cattag3&#039; },
+			]);
+
+			// after purging values should update properly
+			await topics.purge(postResult.topicData.tid, adminUid);
+			result = await topics.getCategoryTagsData(cid, 0, -1);
+			assert.deepStrictEqual(result, [
+				{ value: &#039;cattag1&#039;, score: 2, valueEscaped: &#039;cattag1&#039;, valueEncoded: &#039;cattag1&#039;, class: &#039;cattag1&#039; },
+				{ value: &#039;cattag2&#039;, score: 1, valueEscaped: &#039;cattag2&#039;, valueEncoded: &#039;cattag2&#039;, class: &#039;cattag2&#039; },
+			]);
+		});
+
+		it(&#039;should update counts correctly if topic is moved between categories&#039;, async () =&gt; {
+			const category1 = await categories.create({ name: &#039;tag category 2&#039; });
+			const category2 = await categories.create({ name: &#039;tag category 2&#039; });
+			const cid1 = category1.cid;
+			const cid2 = category2.cid;
+
+			const title = &#039;test title&#039;;
+			const postResult = await topics.post({ uid: adminUid, tags: [&#039;movedtag1&#039;, &#039;movedtag2&#039;], title: title, content: &#039;topic 1 content&#039;, cid: cid1 });
+
+			await topics.post({ uid: adminUid, tags: [&#039;movedtag1&#039;], title: title, content: &#039;topic 1 content&#039;, cid: cid1 });
+			await topics.post({ uid: adminUid, tags: [&#039;movedtag2&#039;], title: title, content: &#039;topic 1 content&#039;, cid: cid2 });
+
+			let result1 = await topics.getCategoryTagsData(cid1, 0, -1);
+			let result2 = await topics.getCategoryTagsData(cid2, 0, -1);
+			assert.deepStrictEqual(result1, [
+				{ value: &#039;movedtag1&#039;, score: 2, valueEscaped: &#039;movedtag1&#039;, valueEncoded: &#039;movedtag1&#039;, class: &#039;movedtag1&#039; },
+				{ value: &#039;movedtag2&#039;, score: 1, valueEscaped: &#039;movedtag2&#039;, valueEncoded: &#039;movedtag2&#039;, class: &#039;movedtag2&#039; },
+			]);
+			assert.deepStrictEqual(result2, [
+				{ value: &#039;movedtag2&#039;, score: 1, valueEscaped: &#039;movedtag2&#039;, valueEncoded: &#039;movedtag2&#039;, class: &#039;movedtag2&#039; },
+			]);
+
+			// after moving values should update properly
+			await topics.tools.move(postResult.topicData.tid, { cid: cid2, uid: adminUid });
+
+			result1 = await topics.getCategoryTagsData(cid1, 0, -1);
+			result2 = await topics.getCategoryTagsData(cid2, 0, -1);
+			assert.deepStrictEqual(result1, [
+				{ value: &#039;movedtag1&#039;, score: 1, valueEscaped: &#039;movedtag1&#039;, valueEncoded: &#039;movedtag1&#039;, class: &#039;movedtag1&#039; },
+			]);
+			assert.deepStrictEqual(result2, [
+				{ value: &#039;movedtag2&#039;, score: 2, valueEscaped: &#039;movedtag2&#039;, valueEncoded: &#039;movedtag2&#039;, class: &#039;movedtag2&#039; },
+				{ value: &#039;movedtag1&#039;, score: 1, valueEscaped: &#039;movedtag1&#039;, valueEncoded: &#039;movedtag1&#039;, class: &#039;movedtag1&#039; },
+			]);
+		});
+
+		it(&#039;should not allow regular user to use system tags&#039;, async () =&gt; {
+			const oldValue = meta.config.systemTags;
+			meta.config.systemTags = &#039;moved,locked&#039;;
+			let err;
+			try {
+				await topics.post({
+					uid: fooUid,
+					tags: [&#039;locked&#039;],
+					title: &#039;i cant use this&#039;,
+					content: &#039;topic 1 content&#039;,
+					cid: categoryObj.cid,
+				});
+			} catch (_err) {
+				err = _err;
+			}
+			assert.strictEqual(err.message, &#039;[[error:cant-use-system-tag]]&#039;);
+			meta.config.systemTags = oldValue;
+		});
+
+		it(&#039;should allow admin user to use system tags&#039;, async () =&gt; {
+			const oldValue = meta.config.systemTags;
+			meta.config.systemTags = &#039;moved,locked&#039;;
+			const result = await topics.post({
+				uid: adminUid,
+				tags: [&#039;locked&#039;],
+				title: &#039;I can use this tag&#039;,
+				content: &#039;topic 1 content&#039;,
+				cid: categoryObj.cid,
+			});
+			assert.strictEqual(result.topicData.tags[0].value, &#039;locked&#039;);
+			meta.config.systemTags = oldValue;
+		});
+
+		it(&#039;should not error if regular user edits topic after admin adds system tags&#039;, async () =&gt; {
+			const oldValue = meta.config.systemTags;
+			meta.config.systemTags = &#039;moved,locked&#039;;
+			const result = await topics.post({
+				uid: fooUid,
+				tags: [&#039;one&#039;, &#039;two&#039;],
+				title: &#039;topic with 2 tags&#039;,
+				content: &#039;topic content&#039;,
+				cid: categoryObj.cid,
+			});
+			await posts.edit({
+				pid: result.postData.pid,
+				uid: adminUid,
+				content: &#039;edited content&#039;,
+				tags: [&#039;one&#039;, &#039;two&#039;, &#039;moved&#039;],
+			});
+			await posts.edit({
+				pid: result.postData.pid,
+				uid: fooUid,
+				content: &#039;edited content&#039;,
+				tags: [&#039;one&#039;, &#039;moved&#039;, &#039;two&#039;],
+			});
+			const tags = await topics.getTopicTags(result.topicData.tid);
+			assert.deepStrictEqual(tags.sort(), [&#039;moved&#039;, &#039;one&#039;, &#039;two&#039;]);
+			meta.config.systemTags = oldValue;
+		});
+	});
+
+	describe(&#039;follow/unfollow&#039;, () =&gt; {
+		const socketTopics = require(&#039;../src/socket.io/topics&#039;);
+		let tid;
+		let followerUid;
+		before((done) =&gt; {
+			User.create({ username: &#039;follower&#039; }, (err, uid) =&gt; {
+				if (err) {
+					return done(err);
+				}
+				followerUid = uid;
+				topics.post({ uid: adminUid, title: &#039;topic title&#039;, content: &#039;some content&#039;, cid: topic.categoryId }, (err, result) =&gt; {
+					if (err) {
+						return done(err);
+					}
+					tid = result.topicData.tid;
+					done();
+				});
+			});
+		});
+
+		it(&#039;should error if not logged in&#039;, async () =&gt; {
+			try {
+				await apiTopics.ignore({ uid: 0 }, { tid: tid });
+				assert(false);
+			} catch (err) {
+				assert.equal(err.message, &#039;[[error:not-logged-in]]&#039;);
+			}
+		});
+
+		it(&#039;should filter ignoring uids&#039;, async () =&gt; {
+			await apiTopics.ignore({ uid: followerUid }, { tid: tid });
+			const uids = await topics.filterIgnoringUids(tid, [adminUid, followerUid]);
+			assert.equal(uids.length, 1);
+			assert.equal(uids[0], adminUid);
+		});
+
+		it(&#039;should error with topic that does not exist&#039;, async () =&gt; {
+			try {
+				await apiTopics.follow({ uid: followerUid }, { tid: -1 });
+				assert(false);
+			} catch (err) {
+				assert.equal(err.message, &#039;[[error:no-topic]]&#039;);
+			}
+		});
+
+		it(&#039;should follow topic&#039;, (done) =&gt; {
+			topics.toggleFollow(tid, followerUid, (err, isFollowing) =&gt; {
+				assert.ifError(err);
+				assert(isFollowing);
+				socketTopics.isFollowed({ uid: followerUid }, tid, (err, isFollowing) =&gt; {
+					assert.ifError(err);
+					assert(isFollowing);
+					done();
+				});
+			});
+		});
+	});
+
+	describe(&#039;topics search&#039;, () =&gt; {
+		it(&#039;should error with invalid data&#039;, async () =&gt; {
+			try {
+				await topics.search(null, null);
+				assert(false);
+			} catch (err) {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+			}
+		});
+
+		it(&#039;should return results&#039;, async () =&gt; {
+			const plugins = require(&#039;../src/plugins&#039;);
+			plugins.hooks.register(&#039;myTestPlugin&#039;, {
+				hook: &#039;filter:topic.search&#039;,
+				method: function (data, callback) {
+					callback(null, [1, 2, 3]);
+				},
+			});
+			const results = await topics.search(topic.tid, &#039;test&#039;);
+			assert.deepEqual(results, [1, 2, 3]);
+		});
+	});
+
+	it(&#039;should check if user is moderator&#039;, (done) =&gt; {
+		socketTopics.isModerator({ uid: adminUid }, topic.tid, (err, isModerator) =&gt; {
+			assert.ifError(err);
+			assert(!isModerator);
+			done();
+		});
+	});
+
+	describe(&#039;next post index&#039;, () =&gt; {
+		it(&#039;should error with invalid data&#039;, async () =&gt; {
+			await assert.rejects(socketTopics.getMyNextPostIndex({ uid: 1 }, null), { message: &#039;[[error:invalid-data]]&#039; });
+			await assert.rejects(socketTopics.getMyNextPostIndex({ uid: 1 }, {}), { message: &#039;[[error:invalid-data]]&#039; });
+			await assert.rejects(socketTopics.getMyNextPostIndex({ uid: 1 }, { tid: 1 }), { message: &#039;[[error:invalid-data]]&#039; });
+			await assert.rejects(socketTopics.getMyNextPostIndex({ uid: 1 }, { tid: 1, index: 1 }), { message: &#039;[[error:invalid-data]]&#039; });
+		});
+
+		it(&#039;should return 0 if user has no posts in topic&#039;, async () =&gt; {
+			const uid = await User.create({ username: &#039;indexposter&#039; });
+			const t = await topics.post({ uid: uid, title: &#039;topic 1&#039;, content: &#039;content 1&#039;, cid: categoryObj.cid });
+			const index = await socketTopics.getMyNextPostIndex({ uid: adminUid }, { tid: t.topicData.tid, index: 1, sort: &#039;oldest_to_newest&#039; });
+			assert.strictEqual(index, 0);
+		});
+
+		it(&#039;should get users next post index in topic&#039;, async () =&gt; {
+			const t = await topics.post({ uid: adminUid, title: &#039;topic 1&#039;, content: &#039;content 1&#039;, cid: categoryObj.cid });
+			await topics.reply({ uid: adminUid, content: &#039;reply 1 content&#039;, tid: t.topicData.tid });
+			await topics.reply({ uid: adminUid, content: &#039;reply 2 content&#039;, tid: t.topicData.tid });
+			const index = await socketTopics.getMyNextPostIndex({ uid: adminUid }, { tid: t.topicData.tid, index: 1, sort: &#039;oldest_to_newest&#039; });
+			assert.strictEqual(index, 1);
+		});
+
+		it(&#039;should get users next post index in topic by wrapping around&#039;, async () =&gt; {
+			const cat = await categories.create({ name: &#039;tag category&#039; });
+			const t = await topics.post({ uid: adminUid, title: &#039;topic 1&#039;, content: &#039;content 1&#039;, cid: cat.cid });
+			await topics.reply({ uid: adminUid, content: &#039;reply 1 content&#039;, tid: t.topicData.tid });
+			await topics.reply({ uid: adminUid, content: &#039;reply 2 content&#039;, tid: t.topicData.tid });
+			let index = await socketTopics.getMyNextPostIndex({ uid: adminUid }, { tid: t.topicData.tid, index: 2, sort: &#039;oldest_to_newest&#039; });
+			assert.strictEqual(index, 2);
+			index = await socketTopics.getMyNextPostIndex({ uid: adminUid }, { tid: t.topicData.tid, index: 3, sort: &#039;oldest_to_newest&#039; });
+			assert.strictEqual(index, 1);
+		});
+	});
+
+
+	describe(&#039;teasers&#039;, () =&gt; {
+		let topic1;
+		let topic2;
+		before(async () =&gt; {
+			topic1 = await topics.post({ uid: adminUid, title: &#039;topic 1&#039;, content: &#039;content 1&#039;, cid: categoryObj.cid });
+			topic2 = await topics.post({ uid: adminUid, title: &#039;topic 2&#039;, content: &#039;content 2&#039;, cid: categoryObj.cid });
+		});
+
+		after((done) =&gt; {
+			meta.config.teaserPost = &#039;&#039;;
+			done();
+		});
+
+
+		it(&#039;should return empty array if first param is empty&#039;, (done) =&gt; {
+			topics.getTeasers([], 1, (err, teasers) =&gt; {
+				assert.ifError(err);
+				assert.equal(0, teasers.length);
+				done();
+			});
+		});
+
+		it(&#039;should get teasers with 2 params&#039;, (done) =&gt; {
+			topics.getTeasers([topic1.topicData, topic2.topicData], 1, (err, teasers) =&gt; {
+				assert.ifError(err);
+				assert.deepEqual([undefined, undefined], teasers);
+				done();
+			});
+		});
+
+		it(&#039;should get teasers with first posts&#039;, (done) =&gt; {
+			meta.config.teaserPost = &#039;first&#039;;
+			topics.getTeasers([topic1.topicData, topic2.topicData], 1, (err, teasers) =&gt; {
+				assert.ifError(err);
+				assert.equal(2, teasers.length);
+				assert(teasers[0]);
+				assert(teasers[1]);
+				assert(teasers[0].tid, topic1.topicData.tid);
+				assert(teasers[0].content, &#039;content 1&#039;);
+				assert(teasers[0].user.username, &#039;admin&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should get teasers even if one topic is falsy&#039;, (done) =&gt; {
+			topics.getTeasers([null, topic2.topicData], 1, (err, teasers) =&gt; {
+				assert.ifError(err);
+				assert.equal(2, teasers.length);
+				assert.equal(undefined, teasers[0]);
+				assert(teasers[1]);
+				assert(teasers[1].tid, topic2.topicData.tid);
+				assert(teasers[1].content, &#039;content 2&#039;);
+				assert(teasers[1].user.username, &#039;admin&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should get teasers with last posts&#039;, (done) =&gt; {
+			meta.config.teaserPost = &#039;last-post&#039;;
+			topics.reply({ uid: adminUid, content: &#039;reply 1 content&#039;, tid: topic1.topicData.tid }, (err, result) =&gt; {
+				assert.ifError(err);
+				topic1.topicData.teaserPid = result.pid;
+				topics.getTeasers([topic1.topicData, topic2.topicData], 1, (err, teasers) =&gt; {
+					assert.ifError(err);
+					assert(teasers[0]);
+					assert(teasers[1]);
+					assert(teasers[0].tid, topic1.topicData.tid);
+					assert(teasers[0].content, &#039;reply 1 content&#039;);
+					done();
+				});
+			});
+		});
+
+		it(&#039;should get teasers by tids&#039;, (done) =&gt; {
+			topics.getTeasersByTids([topic2.topicData.tid, topic1.topicData.tid], 1, (err, teasers) =&gt; {
+				assert.ifError(err);
+				assert(2, teasers.length);
+				assert.equal(teasers[1].content, &#039;reply 1 content&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should return empty array &#039;, (done) =&gt; {
+			topics.getTeasersByTids([], 1, (err, teasers) =&gt; {
+				assert.ifError(err);
+				assert.equal(0, teasers.length);
+				done();
+			});
+		});
+
+		it(&#039;should get teaser by tid&#039;, (done) =&gt; {
+			topics.getTeaser(topic2.topicData.tid, 1, (err, teaser) =&gt; {
+				assert.ifError(err);
+				assert(teaser);
+				assert.equal(teaser.content, &#039;content 2&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should not return teaser if user is blocked&#039;, async () =&gt; {
+			const blockedUid = await User.create({ username: &#039;blocked&#039; });
+			await User.blocks.add(blockedUid, adminUid);
+			await topics.reply({ uid: blockedUid, content: &#039;post from blocked user&#039;, tid: topic2.topicData.tid });
+			const teaser = await topics.getTeaser(topic2.topicData.tid, adminUid);
+			assert.equal(teaser.content, &#039;content 2&#039;);
+			await User.blocks.remove(blockedUid, adminUid);
+		});
+	});
+
+	describe(&#039;tag privilege&#039;, () =&gt; {
+		let uid;
+		let cid;
+		before(async () =&gt; {
+			uid = await User.create({ username: &#039;tag_poster&#039; });
+			const category = await categories.create({ name: &#039;tag category&#039; });
+			cid = category.cid;
+		});
+
+		it(&#039;should fail to post if user does not have tag privilege&#039;, (done) =&gt; {
+			privileges.categories.rescind([&#039;groups:topics:tag&#039;], cid, &#039;registered-users&#039;, (err) =&gt; {
+				assert.ifError(err);
+				topics.post({ uid: uid, cid: cid, tags: [&#039;tag1&#039;], title: &#039;topic with tags&#039;, content: &#039;some content here&#039; }, (err) =&gt; {
+					assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+					done();
+				});
+			});
+		});
+
+		it(&#039;should fail to edit if user does not have tag privilege&#039;, (done) =&gt; {
+			topics.post({ uid: uid, cid: cid, title: &#039;topic with tags&#039;, content: &#039;some content here&#039; }, (err, result) =&gt; {
+				assert.ifError(err);
+				const { pid } = result.postData;
+				posts.edit({ pid: pid, uid: uid, content: &#039;edited content&#039;, tags: [&#039;tag2&#039;] }, (err) =&gt; {
+					assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+					done();
+				});
+			});
+		});
+
+		it(&#039;should be able to edit topic and add tags if allowed&#039;, (done) =&gt; {
+			privileges.categories.give([&#039;groups:topics:tag&#039;], cid, &#039;registered-users&#039;, (err) =&gt; {
+				assert.ifError(err);
+				topics.post({ uid: uid, cid: cid, tags: [&#039;tag1&#039;], title: &#039;topic with tags&#039;, content: &#039;some content here&#039; }, (err, result) =&gt; {
+					assert.ifError(err);
+					posts.edit({ pid: result.postData.pid, uid: uid, content: &#039;edited content&#039;, tags: [&#039;tag1&#039;, &#039;tag2&#039;] }, (err, result) =&gt; {
+						assert.ifError(err);
+						const tags = result.topic.tags.map(tag =&gt; tag.value);
+						assert(tags.includes(&#039;tag1&#039;));
+						assert(tags.includes(&#039;tag2&#039;));
+						done();
+					});
+				});
+			});
+		});
+	});
+
+	describe(&#039;topic merge&#039;, () =&gt; {
+		let uid;
+		let topic1Data;
+		let topic2Data;
+
+		async function getTopic(tid) {
+			const topicData = await topics.getTopicData(tid);
+			return await topics.getTopicWithPosts(topicData, `tid:${topicData.tid}:posts`, adminUid, 0, 19, false);
+		}
+
+		before(async () =&gt; {
+			uid = await User.create({ username: &#039;mergevictim&#039; });
+			let result = await topics.post({ uid: uid, cid: categoryObj.cid, title: &#039;topic 1&#039;, content: &#039;topic 1 OP&#039; });
+			topic1Data = result.topicData;
+			result = await topics.post({ uid: uid, cid: categoryObj.cid, title: &#039;topic 2&#039;, content: &#039;topic 2 OP&#039; });
+			topic2Data = result.topicData;
+			await topics.reply({ uid: uid, content: &#039;topic 1 reply&#039;, tid: topic1Data.tid });
+			await topics.reply({ uid: uid, content: &#039;topic 2 reply&#039;, tid: topic2Data.tid });
+		});
+
+		it(&#039;should error if data is not an array&#039;, (done) =&gt; {
+			socketTopics.merge({ uid: 0 }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should error if user does not have privileges&#039;, (done) =&gt; {
+			socketTopics.merge({ uid: 0 }, { tids: [topic2Data.tid, topic1Data.tid] }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should merge 2 topics&#039;, async () =&gt; {
+			await socketTopics.merge({ uid: adminUid }, {
+				tids: [topic2Data.tid, topic1Data.tid],
+			});
+
+			const [topic1, topic2] = await Promise.all([
+				getTopic(topic1Data.tid),
+				getTopic(topic2Data.tid),
+			]);
+
+			assert.equal(topic1.posts.length, 4);
+			assert.equal(topic2.posts.length, 0);
+			assert.equal(topic2.deleted, true);
+
+			assert.equal(topic1.posts[0].content, &#039;topic 1 OP&#039;);
+			assert.equal(topic1.posts[1].content, &#039;topic 2 OP&#039;);
+			assert.equal(topic1.posts[2].content, &#039;topic 1 reply&#039;);
+			assert.equal(topic1.posts[3].content, &#039;topic 2 reply&#039;);
+			assert.equal(topic1.title, &#039;topic 1&#039;);
+		});
+
+		it(&#039;should return properly for merged topic&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/${topic2Data.slug}`, { jar: adminJar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+			assert.deepStrictEqual(body.posts, []);
+		});
+
+		it(&#039;should merge 2 topics with options mainTid&#039;, async () =&gt; {
+			const topic1Result = await topics.post({ uid: uid, cid: categoryObj.cid, title: &#039;topic 1&#039;, content: &#039;topic 1 OP&#039; });
+			const topic2Result = await topics.post({ uid: uid, cid: categoryObj.cid, title: &#039;topic 2&#039;, content: &#039;topic 2 OP&#039; });
+			await topics.reply({ uid: uid, content: &#039;topic 1 reply&#039;, tid: topic1Result.topicData.tid });
+			await topics.reply({ uid: uid, content: &#039;topic 2 reply&#039;, tid: topic2Result.topicData.tid });
+			await socketTopics.merge({ uid: adminUid }, {
+				tids: [topic2Result.topicData.tid, topic1Result.topicData.tid],
+				options: {
+					mainTid: topic2Result.topicData.tid,
+				},
+			});
+
+			const [topic1, topic2] = await Promise.all([
+				getTopic(topic1Result.topicData.tid),
+				getTopic(topic2Result.topicData.tid),
+			]);
+
+			assert.equal(topic1.posts.length, 0);
+			assert.equal(topic2.posts.length, 4);
+			assert.equal(topic1.deleted, true);
+
+			assert.equal(topic2.posts[0].content, &#039;topic 2 OP&#039;);
+			assert.equal(topic2.posts[1].content, &#039;topic 1 OP&#039;);
+			assert.equal(topic2.posts[2].content, &#039;topic 1 reply&#039;);
+			assert.equal(topic2.posts[3].content, &#039;topic 2 reply&#039;);
+			assert.equal(topic2.title, &#039;topic 2&#039;);
+		});
+
+		it(&#039;should merge 2 topics with options newTopicTitle&#039;, async () =&gt; {
+			const topic1Result = await topics.post({ uid: uid, cid: categoryObj.cid, title: &#039;topic 1&#039;, content: &#039;topic 1 OP&#039; });
+			const topic2Result = await topics.post({ uid: uid, cid: categoryObj.cid, title: &#039;topic 2&#039;, content: &#039;topic 2 OP&#039; });
+			await topics.reply({ uid: uid, content: &#039;topic 1 reply&#039;, tid: topic1Result.topicData.tid });
+			await topics.reply({ uid: uid, content: &#039;topic 2 reply&#039;, tid: topic2Result.topicData.tid });
+			const mergeTid = await socketTopics.merge({ uid: adminUid }, {
+				tids: [topic2Result.topicData.tid, topic1Result.topicData.tid],
+				options: {
+					newTopicTitle: &#039;new merge topic&#039;,
+				},
+			});
+
+			const [topic1, topic2, topic3] = await Promise.all([
+				getTopic(topic1Result.topicData.tid),
+				getTopic(topic2Result.topicData.tid),
+				getTopic(mergeTid),
+			]);
+
+			assert.equal(topic1.posts.length, 0);
+			assert.equal(topic2.posts.length, 0);
+			assert.equal(topic3.posts.length, 4);
+			assert.equal(topic1.deleted, true);
+			assert.equal(topic2.deleted, true);
+
+			assert.equal(topic3.posts[0].content, &#039;topic 1 OP&#039;);
+			assert.equal(topic3.posts[1].content, &#039;topic 2 OP&#039;);
+			assert.equal(topic3.posts[2].content, &#039;topic 1 reply&#039;);
+			assert.equal(topic3.posts[3].content, &#039;topic 2 reply&#039;);
+			assert.equal(topic3.title, &#039;new merge topic&#039;);
+		});
+	});
+
+	describe(&#039;sorted topics&#039;, () =&gt; {
+		let category;
+		before(async () =&gt; {
+			category = await categories.create({ name: &#039;sorted&#039; });
+			const topic1Result = await topics.post({ uid: topic.userId, cid: category.cid, title: &#039;old replied&#039;, content: &#039;topic 1 OP&#039; });
+			const topic2Result = await topics.post({ uid: topic.userId, cid: category.cid, title: &#039;most recent replied&#039;, content: &#039;topic 2 OP&#039; });
+			await topics.reply({ uid: topic.userId, content: &#039;topic 1 reply&#039;, tid: topic1Result.topicData.tid });
+			await topics.reply({ uid: topic.userId, content: &#039;topic 2 reply&#039;, tid: topic2Result.topicData.tid });
+		});
+
+		it(&#039;should get sorted topics in category&#039;, async () =&gt; {
+			const filters = [&#039;&#039;, &#039;watched&#039;, &#039;unreplied&#039;, &#039;new&#039;];
+			const data = await Promise.all(filters.map(
+				async filter =&gt; topics.getSortedTopics({
+					cids: [category.cid],
+					uid: topic.userId,
+					start: 0,
+					stop: -1,
+					filter: filter,
+					sort: &#039;votes&#039;,
+				})
+			));
+			assert(data);
+			data.forEach((filterTopics) =&gt; {
+				assert(Array.isArray(filterTopics.topics));
+			});
+		});
+
+		it(&#039;should get topics recent replied first&#039;, async () =&gt; {
+			const data = await topics.getSortedTopics({
+				cids: [category.cid],
+				uid: topic.userId,
+				start: 0,
+				stop: -1,
+				sort: &#039;recent&#039;,
+			});
+			assert.strictEqual(data.topics[0].title, &#039;most recent replied&#039;);
+			assert.strictEqual(data.topics[1].title, &#039;old replied&#039;);
+		});
+
+		it(&#039;should get topics recent replied last&#039;, async () =&gt; {
+			const data = await topics.getSortedTopics({
+				cids: [category.cid],
+				uid: topic.userId,
+				start: 0,
+				stop: -1,
+				sort: &#039;old&#039;,
+			});
+			assert.strictEqual(data.topics[0].title, &#039;old replied&#039;);
+			assert.strictEqual(data.topics[1].title, &#039;most recent replied&#039;);
+		});
+	});
+
+	describe(&#039;scheduled topics&#039;, () =&gt; {
+		let categoryObj;
+		let topicData;
+		let topic;
+		let adminApiOpts;
+		let postData;
+		const replyData = {
+			body: {
+				content: &#039;a reply by guest&#039;,
+			},
+		};
+
+		before(async () =&gt; {
+			adminApiOpts = {
+				jar: adminJar,
+				headers: {
+					&#039;x-csrf-token&#039;: csrf_token,
+				},
+			};
+			categoryObj = await categories.create({
+				name: &#039;Another Test Category&#039;,
+				description: &#039;Another test category created by testing script&#039;,
+			});
+			topic = {
+				uid: adminUid,
+				cid: categoryObj.cid,
+				title: &#039;Scheduled Test Topic Title&#039;,
+				content: &#039;The content of scheduled test topic&#039;,
+				timestamp: new Date(Date.now() + 86400000).getTime(),
+			};
+		});
+
+		it(&#039;should create a scheduled topic as pinned, deleted, included in &quot;topics:scheduled&quot; zset and with a timestamp in future&#039;, async () =&gt; {
+			topicData = (await topics.post(topic)).topicData;
+			topicData = await topics.getTopicData(topicData.tid);
+
+			assert(topicData.pinned);
+			assert(topicData.deleted);
+			assert(topicData.scheduled);
+			assert(topicData.timestamp &gt; Date.now());
+			const score = await db.sortedSetScore(&#039;topics:scheduled&#039;, topicData.tid);
+			assert(score);
+			// should not be in regular category zsets
+			const isMember = await db.isMemberOfSortedSets([
+				`cid:${categoryObj.cid}:tids`,
+				`cid:${categoryObj.cid}:tids:votes`,
+				`cid:${categoryObj.cid}:tids:posts`,
+			], topicData.tid);
+			assert.deepStrictEqual(isMember, [false, false, false]);
+		});
+
+		it(&#039;should update poster\&#039;s lastposttime with &quot;action time&quot;&#039;, async () =&gt; {
+			// src/user/posts.js:56
+			const data = await User.getUsersFields([adminUid], [&#039;lastposttime&#039;]);
+			assert.notStrictEqual(data[0].lastposttime, topicData.lastposttime);
+		});
+
+		it(&#039;should not load topic for an unprivileged user&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/topic/${topicData.slug}`);
+			assert.strictEqual(response.statusCode, 404);
+			assert(body);
+		});
+
+		it(&#039;should load topic for a privileged user&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/topic/${topicData.slug}`, { jar: adminJar });
+			assert.strictEqual(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should not be amongst topics of the category for an unprivileged user&#039;, async () =&gt; {
+			const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${categoryObj.slug}`);
+			assert.strictEqual(body.topics.filter(topic =&gt; topic.tid === topicData.tid).length, 0);
+		});
+
+		it(&#039;should be amongst topics of the category for a privileged user&#039;, async () =&gt; {
+			const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${categoryObj.slug}`, { jar: adminJar });
+			const topic = body.topics.filter(topic =&gt; topic.tid === topicData.tid)[0];
+			assert.strictEqual(topic &amp;&amp; topic.tid, topicData.tid);
+		});
+
+		it(&#039;should load topic for guests if privilege is given&#039;, async () =&gt; {
+			await privileges.categories.give([&#039;groups:topics:schedule&#039;], categoryObj.cid, &#039;guests&#039;);
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/topic/${topicData.slug}`);
+			assert.strictEqual(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should be amongst topics of the category for guests if privilege is given&#039;, async () =&gt; {
+			const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${categoryObj.slug}`);
+			const topic = body.topics.filter(topic =&gt; topic.tid === topicData.tid)[0];
+			assert.strictEqual(topic &amp;&amp; topic.tid, topicData.tid);
+		});
+
+		it(&#039;should not allow deletion of a scheduled topic&#039;, async () =&gt; {
+			const { response } = await request.delete(`${nconf.get(&#039;url&#039;)}/api/v3/topics/${topicData.tid}/state`, adminApiOpts);
+			assert.strictEqual(response.statusCode, 400);
+		});
+
+		it(&#039;should not allow to unpin a scheduled topic&#039;, async () =&gt; {
+			const { response } = await request.delete(`${nconf.get(&#039;url&#039;)}/api/v3/topics/${topicData.tid}/pin`, adminApiOpts);
+			assert.strictEqual(response.statusCode, 400);
+		});
+
+		it(&#039;should not allow to restore a scheduled topic&#039;, async () =&gt; {
+			const { response } = await request.put(`${nconf.get(&#039;url&#039;)}/api/v3/topics/${topicData.tid}/state`, adminApiOpts);
+			assert.strictEqual(response.statusCode, 400);
+		});
+
+		it(&#039;should not allow unprivileged to reply&#039;, async () =&gt; {
+			await privileges.categories.rescind([&#039;groups:topics:schedule&#039;], categoryObj.cid, &#039;guests&#039;);
+			await privileges.categories.give([&#039;groups:topics:reply&#039;], categoryObj.cid, &#039;guests&#039;);
+			const { response } = await request.post(`${nconf.get(&#039;url&#039;)}/api/v3/topics/${topicData.tid}`, replyData);
+			assert.strictEqual(response.statusCode, 403);
+		});
+
+		it(&#039;should allow guests to reply if privilege is given&#039;, async () =&gt; {
+			await privileges.categories.give([&#039;groups:topics:schedule&#039;], categoryObj.cid, &#039;guests&#039;);
+			const { body } = await helpers.request(&#039;post&#039;, `/api/v3/topics/${topicData.tid}`, {
+				...replyData,
+				jar: request.jar(),
+			});
+			assert.strictEqual(body.response.content, &#039;a reply by guest&#039;);
+			assert.strictEqual(body.response.user.username, &#039;[[global:guest]]&#039;);
+		});
+
+		it(&#039;should have replies with greater timestamp than the scheduled topics itself&#039;, async () =&gt; {
+			const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/topic/${topicData.slug}`);
+			postData = body.posts[1];
+			assert(postData.timestamp &gt; body.posts[0].timestamp);
+		});
+
+		it(&#039;should have post edits with greater timestamp than the original&#039;, async () =&gt; {
+			const editData = { ...adminApiOpts, body: { content: &#039;an edit by the admin&#039; } };
+			const result = await request.put(`${nconf.get(&#039;url&#039;)}/api/v3/posts/${postData.pid}`, editData);
+			assert(result.body.response.edited &gt; postData.timestamp);
+
+			const diffsResult = await request.get(`${nconf.get(&#039;url&#039;)}/api/v3/posts/${postData.pid}/diffs`, adminApiOpts);
+			const { revisions } = diffsResult.body.response;
+			// diffs are LIFO
+			assert(revisions[0].timestamp &gt; revisions[1].timestamp);
+		});
+
+		it(&#039;should able to reschedule&#039;, async () =&gt; {
+			const newDate = new Date(Date.now() + (5 * 86400000)).getTime();
+			const editData = { ...adminApiOpts, body: { ...topic, pid: topicData.mainPid, timestamp: newDate } };
+			await request.put(`${nconf.get(&#039;url&#039;)}/api/v3/posts/${topicData.mainPid}`, editData);
+
+			const editedTopic = await topics.getTopicFields(topicData.tid, [&#039;lastposttime&#039;, &#039;timestamp&#039;]);
+			const editedPost = await posts.getPostFields(postData.pid, [&#039;timestamp&#039;]);
+			assert(editedTopic.timestamp === newDate);
+			assert(editedPost.timestamp &gt; editedTopic.timestamp);
+
+			const scores = await db.sortedSetsScore([
+				&#039;topics:scheduled&#039;,
+				`uid:${adminUid}:topics`,
+				&#039;topics:tid&#039;,
+				`cid:${topicData.cid}:uid:${adminUid}:tids`,
+			], topicData.tid);
+			assert(scores.every(publishTime =&gt; publishTime === editedTopic.timestamp));
+		});
+
+		it(&#039;should able to publish a scheduled topic&#039;, async () =&gt; {
+			const topicTimestamp = await topics.getTopicField(topicData.tid, &#039;timestamp&#039;);
+
+			mockdate.set(topicTimestamp);
+			await topics.scheduled.handleExpired();
+
+			topicData = await topics.getTopicData(topicData.tid);
+			assert(!topicData.pinned);
+			assert(!topicData.deleted);
+			// Should remove from topics:scheduled upon publishing
+			const score = await db.sortedSetScore(&#039;topics:scheduled&#039;, topicData.tid);
+			assert(!score);
+		});
+
+		it(&#039;should update poster\&#039;s lastposttime after a ST published&#039;, async () =&gt; {
+			const data = await User.getUsersFields([adminUid], [&#039;lastposttime&#039;]);
+			assert.strictEqual(adminUid, topicData.uid);
+			assert.strictEqual(data[0].lastposttime, topicData.lastposttime);
+		});
+
+		it(&#039;should not be able to schedule a &quot;published&quot; topic&#039;, async () =&gt; {
+			const newDate = new Date(Date.now() + 86400000).getTime();
+			const editData = { ...adminApiOpts, body: { ...topic, pid: topicData.mainPid, timestamp: newDate } };
+			const { body } = await request.put(`${nconf.get(&#039;url&#039;)}/api/v3/posts/${topicData.mainPid}`, editData);
+			assert.strictEqual(body.response.timestamp, Date.now());
+			mockdate.reset();
+		});
+
+		it(&#039;should allow to purge a scheduled topic&#039;, async () =&gt; {
+			topicData = (await topics.post(topic)).topicData;
+			const { response } = await request.delete(`${nconf.get(&#039;url&#039;)}/api/v3/topics/${topicData.tid}`, adminApiOpts);
+			assert.strictEqual(response.statusCode, 200);
+		});
+
+		it(&#039;should remove from topics:scheduled on purge&#039;, async () =&gt; {
+			const score = await db.sortedSetScore(&#039;topics:scheduled&#039;, topicData.tid);
+			assert(!score);
+		});
+	});
+});
+
+describe(&#039;Topics\&#039;&#039;, async () =&gt; {
+	let files;
+
+	before(async () =&gt; {
+		files = await file.walk(path.resolve(__dirname, &#039;./topics&#039;));
+	});
+
+	it(&#039;subfolder tests&#039;, () =&gt; {
+		files.forEach((filePath) =&gt; {
+			require(filePath);
+		});
+	});
+});</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>
