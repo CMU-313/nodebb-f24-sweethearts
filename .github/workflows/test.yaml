@@ -86,8 +86,8 @@ jobs:
       - name: Test coverage
         uses: coverallsapp/github-action@v2
 
-      - name: Install Plato
-        uses: npm install -g plato@latest
+      # - name: Install Plato
+      #   uses: npm install -g plato@latest
 
       # - name: Run Plato
       #   run: plato -r -d plato-report src
