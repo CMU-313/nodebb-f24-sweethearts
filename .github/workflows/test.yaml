@@ -47,9 +47,6 @@ jobs:
         uses: bahmutov/npm-install@v1
         with:
           useLockFile: false
-          
-      - name: Install Plato
-        uses: npm install -g plato@latest
 
       - name: Setup for Redis
         env:
@@ -88,7 +85,3 @@ jobs:
 
       - name: Test coverage
         uses: coverallsapp/github-action@v2
-
-
-      # - name: Run Plato
-      #   run: plato -r -d plato-report src
