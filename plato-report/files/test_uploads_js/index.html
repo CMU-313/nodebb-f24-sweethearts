@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - test/uploads.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>test/uploads.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">70.40</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">513</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">68.33</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">7.96</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+const async = require(&#039;async&#039;);
+const assert = require(&#039;assert&#039;);
+const nconf = require(&#039;nconf&#039;);
+const path = require(&#039;path&#039;);
+const fs = require(&#039;fs&#039;).promises;
+
+const db = require(&#039;./mocks/databasemock&#039;);
+const categories = require(&#039;../src/categories&#039;);
+const topics = require(&#039;../src/topics&#039;);
+const posts = require(&#039;../src/posts&#039;);
+const user = require(&#039;../src/user&#039;);
+const groups = require(&#039;../src/groups&#039;);
+const privileges = require(&#039;../src/privileges&#039;);
+const meta = require(&#039;../src/meta&#039;);
+const socketUser = require(&#039;../src/socket.io/user&#039;);
+const helpers = require(&#039;./helpers&#039;);
+const file = require(&#039;../src/file&#039;);
+const image = require(&#039;../src/image&#039;);
+const request = require(&#039;../src/request&#039;);
+
+const emptyUploadsFolder = async () =&gt; {
+	const files = await fs.readdir(`${nconf.get(&#039;upload_path&#039;)}/files`);
+	await Promise.all(files.map(async (filename) =&gt; {
+		await file.delete(`${nconf.get(&#039;upload_path&#039;)}/files/${filename}`);
+	}));
+};
+
+describe(&#039;Upload Controllers&#039;, () =&gt; {
+	let tid;
+	let cid;
+	let pid;
+	let adminUid;
+	let regularUid;
+	let maliciousUid;
+
+	before((done) =&gt; {
+		async.series({
+			category: function (next) {
+				categories.create({
+					name: &#039;Test Category&#039;,
+					description: &#039;Test category created by testing script&#039;,
+				}, next);
+			},
+			adminUid: function (next) {
+				user.create({ username: &#039;admin&#039;, password: &#039;barbar&#039; }, next);
+			},
+			regularUid: function (next) {
+				user.create({ username: &#039;regular&#039;, password: &#039;zugzug&#039; }, next);
+			},
+			maliciousUid: function (next) {
+				user.create({ username: &#039;malicioususer&#039;, password: &#039;herpderp&#039; }, next);
+			},
+		}, (err, results) =&gt; {
+			if (err) {
+				return done(err);
+			}
+			adminUid = results.adminUid;
+			regularUid = results.regularUid;
+			maliciousUid = results.maliciousUid;
+			cid = results.category.cid;
+
+			topics.post({ uid: adminUid, title: &#039;test topic title&#039;, content: &#039;test topic content&#039;, cid: results.category.cid }, (err, result) =&gt; {
+				if (err) {
+					return done(err);
+				}
+				tid = result.topicData.tid;
+				pid = result.postData.pid;
+				groups.join(&#039;administrators&#039;, adminUid, done);
+			});
+		});
+	});
+
+	describe(&#039;regular user uploads rate limits&#039;, () =&gt; {
+		let jar;
+		let csrf_token;
+
+		before(async () =&gt; {
+			({ jar, csrf_token } = await helpers.loginUser(&#039;malicioususer&#039;, &#039;herpderp&#039;));
+			await privileges.global.give([&#039;groups:upload:post:file&#039;], &#039;registered-users&#039;);
+		});
+
+		it(&#039;should fail if the user exceeds the upload rate limit threshold&#039;, async () =&gt; {
+			const oldValue = meta.config.allowedFileExtensions;
+			meta.config.allowedFileExtensions = &#039;png,jpg,bmp,html&#039;;
+			require(&#039;../src/middleware/uploads&#039;).clearCache();
+			const times = meta.config.uploadRateLimitThreshold + 1;
+			for (let i = 0; i &lt; times; i++) {
+				// eslint-disable-next-line no-await-in-loop
+				const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/post/upload`, path.join(__dirname, &#039;../test/files/503.html&#039;), {}, jar, csrf_token);
+				if (i + 1 &gt;= times) {
+					assert.strictEqual(response.statusCode, 500);
+					assert.strictEqual(body.error, &#039;[[error:upload-ratelimit-reached]]&#039;);
+				} else {
+					assert.strictEqual(response.statusCode, 200);
+					assert(body &amp;&amp; body.status &amp;&amp; body.response &amp;&amp; body.response.images);
+					assert(Array.isArray(body.response.images));
+					assert(body.response.images[0].url);
+				}
+			}
+			meta.config.allowedFileExtensions = oldValue;
+		});
+	});
+
+	describe(&#039;regular user uploads&#039;, () =&gt; {
+		let jar;
+		let csrf_token;
+
+		before(async () =&gt; {
+			meta.config.uploadRateLimitThreshold = 1000;
+			({ jar, csrf_token } = await helpers.loginUser(&#039;regular&#039;, &#039;zugzug&#039;));
+			await privileges.global.give([&#039;groups:upload:post:file&#039;], &#039;registered-users&#039;);
+		});
+
+		it(&#039;should upload an image to a post&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/post/upload`, path.join(__dirname, &#039;../test/files/test.png&#039;), {}, jar, csrf_token);
+			assert.equal(response.statusCode, 200);
+			assert(body &amp;&amp; body.status &amp;&amp; body.response &amp;&amp; body.response.images);
+			assert(Array.isArray(body.response.images));
+			assert(body.response.images[0].url);
+		});
+
+		it(&#039;should upload an image to a post and then delete the upload&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/post/upload`, path.join(__dirname, &#039;../test/files/test.png&#039;), {}, jar, csrf_token);
+
+			assert.strictEqual(response.statusCode, 200);
+			assert(body &amp;&amp; body.status &amp;&amp; body.response &amp;&amp; body.response.images);
+			assert(Array.isArray(body.response.images));
+			assert(body.response.images[0].url);
+			const name = body.response.images[0].url.replace(`${nconf.get(&#039;relative_path&#039;) + nconf.get(&#039;upload_url&#039;)}/`, &#039;&#039;);
+			await socketUser.deleteUpload({ uid: regularUid }, { uid: regularUid, name: name });
+
+			const uploads = await db.getSortedSetRange(`uid:${regularUid}:uploads`, 0, -1);
+			assert.equal(uploads.includes(name), false);
+		});
+
+		it(&#039;should not allow deleting if path is not correct&#039;, (done) =&gt; {
+			socketUser.deleteUpload({ uid: adminUid }, { uid: regularUid, name: &#039;../../bkconfig.json&#039; }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-path]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should not allow deleting if path is not correct&#039;, (done) =&gt; {
+			socketUser.deleteUpload({ uid: adminUid }, { uid: regularUid, name: &#039;/files/../../bkconfig.json&#039; }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-path]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should resize and upload an image to a post&#039;, async () =&gt; {
+			const oldValue = meta.config.resizeImageWidth;
+			meta.config.resizeImageWidth = 10;
+			meta.config.resizeImageWidthThreshold = 10;
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/post/upload`, path.join(__dirname, &#039;../test/files/test.png&#039;), {}, jar, csrf_token);
+
+			assert.equal(response.statusCode, 200);
+			assert(body &amp;&amp; body.status &amp;&amp; body.response &amp;&amp; body.response.images);
+			assert(Array.isArray(body.response.images));
+			assert(body.response.images[0].url);
+			assert(body.response.images[0].url.match(/\/assets\/uploads\/files\/\d+-test-resized\.png/));
+			meta.config.resizeImageWidth = oldValue;
+			meta.config.resizeImageWidthThreshold = 1520;
+		});
+
+		it(&#039;should upload a file to a post&#039;, async () =&gt; {
+			const oldValue = meta.config.allowedFileExtensions;
+			meta.config.allowedFileExtensions = &#039;png,jpg,bmp,html&#039;;
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/post/upload`, path.join(__dirname, &#039;../test/files/503.html&#039;), {}, jar, csrf_token);
+			meta.config.allowedFileExtensions = oldValue;
+
+			assert.strictEqual(response.statusCode, 200);
+			assert(body &amp;&amp; body.status &amp;&amp; body.response &amp;&amp; body.response.images);
+			assert(Array.isArray(body.response.images));
+			assert(body.response.images[0].url);
+		});
+
+		it(&#039;should fail to upload image to post if image dimensions are too big&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/post/upload`, path.join(__dirname, &#039;../test/files/toobig.png&#039;), {}, jar, csrf_token);
+			assert.strictEqual(response.statusCode, 500);
+			assert(body &amp;&amp; body.status &amp;&amp; body.status.message);
+			assert.strictEqual(body.status.message, &#039;Image dimensions are too big&#039;);
+		});
+
+		it(&#039;should fail to upload image to post if image is broken&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/post/upload`, path.join(__dirname, &#039;../test/files/brokenimage.png&#039;), {}, jar, csrf_token);
+			assert.strictEqual(response.statusCode, 500);
+			assert(body &amp;&amp; body.status &amp;&amp; body.status.message);
+			assert.strictEqual(body.status.message, &#039;Input file contains unsupported image format&#039;);
+		});
+
+		it(&#039;should fail if file is not an image&#039;, (done) =&gt; {
+			image.isFileTypeAllowed(path.join(__dirname, &#039;../test/files/notanimage.png&#039;), (err) =&gt; {
+				assert.strictEqual(err.message, &#039;Input file contains unsupported image format&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should fail if file is not an image&#039;, (done) =&gt; {
+			image.isFileTypeAllowed(path.join(__dirname, &#039;../test/files/notanimage.png&#039;), (err) =&gt; {
+				assert.strictEqual(err.message, &#039;Input file contains unsupported image format&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should fail if file is not an image&#039;, (done) =&gt; {
+			image.size(path.join(__dirname, &#039;../test/files/notanimage.png&#039;), (err) =&gt; {
+				assert.strictEqual(err.message, &#039;Input file contains unsupported image format&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should fail if file is missing&#039;, (done) =&gt; {
+			image.size(path.join(__dirname, &#039;../test/files/doesnotexist.png&#039;), (err) =&gt; {
+				assert(err.message.startsWith(&#039;Input file is missing&#039;));
+				done();
+			});
+		});
+
+		it(&#039;should not allow non image uploads&#039;, (done) =&gt; {
+			socketUser.updateCover({ uid: 1 }, { uid: 1, file: { path: &#039;../../text.txt&#039; } }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should not allow non image uploads&#039;, (done) =&gt; {
+			socketUser.updateCover({ uid: 1 }, { uid: 1, imageData: &#039;data:text/html;base64,PHN2Zy9vbmxvYWQ9YWxlcnQoMik+&#039; }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-image]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should not allow svg uploads&#039;, (done) =&gt; {
+			socketUser.updateCover({ uid: 1 }, { uid: 1, imageData: &#039;data:image/svg;base64,PHN2Zy9vbmxvYWQ9YWxlcnQoMik+&#039; }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-image]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should not allow non image uploads&#039;, (done) =&gt; {
+			socketUser.uploadCroppedPicture({ uid: 1 }, { uid: 1, file: { path: &#039;../../text.txt&#039; } }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should not allow non image uploads&#039;, (done) =&gt; {
+			socketUser.uploadCroppedPicture({ uid: 1 }, { uid: 1, imageData: &#039;data:text/html;base64,PHN2Zy9vbmxvYWQ9YWxlcnQoMik+&#039; }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-image]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should not allow svg uploads&#039;, (done) =&gt; {
+			socketUser.uploadCroppedPicture({ uid: 1 }, { uid: 1, imageData: &#039;data:image/svg;base64,PHN2Zy9vbmxvYWQ9YWxlcnQoMik+&#039; }, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-image]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should delete users uploads if account is deleted&#039;, async () =&gt; {
+			const uid = await user.create({ username: &#039;uploader&#039;, password: &#039;barbar&#039; });
+			const file = require(&#039;../src/file&#039;);
+			const data = await helpers.loginUser(&#039;uploader&#039;, &#039;barbar&#039;);
+			const { body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/post/upload`, path.join(__dirname, &#039;../test/files/test.png&#039;), {}, data.jar, data.csrf_token);
+
+			assert(body &amp;&amp; body.status &amp;&amp; body.response &amp;&amp; body.response.images);
+			assert(Array.isArray(body.response.images));
+			assert(body.response.images[0].url);
+			const { url } = body.response.images[0];
+
+			await user.delete(1, uid);
+
+			const filePath = path.join(nconf.get(&#039;upload_path&#039;), url.replace(&#039;/assets/uploads&#039;, &#039;&#039;));
+			const exists = await file.exists(filePath);
+			assert(!exists);
+		});
+
+		after(emptyUploadsFolder);
+	});
+
+	describe(&#039;admin uploads&#039;, () =&gt; {
+		let jar;
+		let csrf_token;
+		let regularJar;
+		let regular_csrf_token;
+
+		before(async () =&gt; {
+			({ jar, csrf_token } = await helpers.loginUser(&#039;admin&#039;, &#039;barbar&#039;));
+			const regularLogin = await helpers.loginUser(&#039;regular&#039;, &#039;zugzug&#039;);
+			regularJar = regularLogin.jar;
+			regular_csrf_token = regularLogin.csrf_token;
+		});
+
+		it(&#039;should upload site logo&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/admin/uploadlogo`, path.join(__dirname, &#039;../test/files/test.png&#039;), {}, jar, csrf_token);
+			assert.strictEqual(response.statusCode, 200);
+			assert(Array.isArray(body));
+			assert.equal(body[0].url, `${nconf.get(&#039;relative_path&#039;)}/assets/uploads/system/site-logo.png`);
+		});
+
+		it(&#039;should fail to upload invalid file type&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/admin/category/uploadpicture`, path.join(__dirname, &#039;../test/files/503.html&#039;), { params: JSON.stringify({ cid: cid }) }, jar, csrf_token);
+			assert.strictEqual(response.statusCode, 500);
+			assert.equal(body.error, &#039;[[error:invalid-image-type, image&amp;#x2F;png&amp;amp;#44; image&amp;#x2F;jpeg&amp;amp;#44; image&amp;#x2F;pjpeg&amp;amp;#44; image&amp;#x2F;jpg&amp;amp;#44; image&amp;#x2F;gif&amp;amp;#44; image&amp;#x2F;svg+xml]]&#039;);
+		});
+
+		it(&#039;should fail to upload category image with invalid json params&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/admin/category/uploadpicture`, path.join(__dirname, &#039;../test/files/test.png&#039;), { params: &#039;invalid json&#039; }, jar, csrf_token);
+			assert.strictEqual(response.statusCode, 500);
+			assert.equal(body.error, &#039;[[error:invalid-json]]&#039;);
+		});
+
+		it(&#039;should upload category image&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/admin/category/uploadpicture`, path.join(__dirname, &#039;../test/files/test.png&#039;), { params: JSON.stringify({ cid: cid }) }, jar, csrf_token);
+			assert.equal(response.statusCode, 200);
+			assert(Array.isArray(body));
+			assert.equal(body[0].url, `${nconf.get(&#039;relative_path&#039;)}/assets/uploads/category/category-1.png`);
+		});
+
+		it(&#039;should upload default avatar&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/admin/uploadDefaultAvatar`, path.join(__dirname, &#039;../test/files/test.png&#039;), { }, jar, csrf_token);
+			assert.equal(response.statusCode, 200);
+			assert.equal(body[0].url, `${nconf.get(&#039;relative_path&#039;)}/assets/uploads/system/avatar-default.png`);
+		});
+
+		it(&#039;should upload og image&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/admin/uploadOgImage`, path.join(__dirname, &#039;../test/files/test.png&#039;), { }, jar, csrf_token);
+			assert.equal(response.statusCode, 200);
+			assert.equal(body[0].url, `${nconf.get(&#039;relative_path&#039;)}/assets/uploads/system/og-image.png`);
+		});
+
+		it(&#039;should upload favicon&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/admin/uploadfavicon`, path.join(__dirname, &#039;../test/files/favicon.ico&#039;), {}, jar, csrf_token);
+			assert.equal(response.statusCode, 200);
+			assert(Array.isArray(body));
+			assert.equal(body[0].url, &#039;/assets/uploads/system/favicon.ico&#039;);
+		});
+
+		it(&#039;should upload touch icon&#039;, async () =&gt; {
+			const touchiconAssetPath = &#039;/assets/uploads/system/touchicon-orig.png&#039;;
+			const { response, body } = await helpers.uploadFile(
+				`${nconf.get(&#039;url&#039;)}/api/admin/uploadTouchIcon`,
+				path.join(__dirname, &#039;../test/files/test.png&#039;),
+				{},
+				jar,
+				csrf_token
+			);
+
+			assert.equal(response.statusCode, 200);
+			assert(Array.isArray(body));
+			assert.equal(body[0].url, touchiconAssetPath);
+			meta.config[&#039;brand:touchIcon&#039;] = touchiconAssetPath;
+			const { response: res1, body: body1 } = await request.get(`${nconf.get(&#039;url&#039;)}/apple-touch-icon`);
+			assert.equal(res1.statusCode, 200);
+			assert(body1);
+		});
+
+		it(&#039;should upload regular file&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/admin/upload/file`, path.join(__dirname, &#039;../test/files/test.png&#039;), {
+				params: JSON.stringify({
+					folder: &#039;system&#039;,
+				}),
+			}, jar, csrf_token);
+
+			assert.equal(response.statusCode, 200);
+			assert(Array.isArray(body));
+			assert.equal(body[0].url, &#039;/assets/uploads/system/test.png&#039;);
+			assert(file.existsSync(path.join(nconf.get(&#039;upload_path&#039;), &#039;system&#039;, &#039;test.png&#039;)));
+		});
+
+		it(&#039;should fail to upload regular file in wrong directory&#039;, async () =&gt; {
+			const { response, body } = await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/admin/upload/file`, path.join(__dirname, &#039;../test/files/test.png&#039;), {
+				params: JSON.stringify({
+					folder: &#039;../../system&#039;,
+				}),
+			}, jar, csrf_token);
+
+			assert.equal(response.statusCode, 500);
+			assert.strictEqual(body.error, &#039;[[error:invalid-path]]&#039;);
+		});
+
+		describe(&#039;ACP uploads screen&#039;, () =&gt; {
+			it(&#039;should create a folder&#039;, async () =&gt; {
+				const { response } = await helpers.createFolder(&#039;&#039;, &#039;myfolder&#039;, jar, csrf_token);
+				assert.strictEqual(response.statusCode, 200);
+				assert(file.existsSync(path.join(nconf.get(&#039;upload_path&#039;), &#039;myfolder&#039;)));
+			});
+
+			it(&#039;should fail to create a folder if it already exists&#039;, async () =&gt; {
+				const { response, body } = await helpers.createFolder(&#039;&#039;, &#039;myfolder&#039;, jar, csrf_token);
+				assert.strictEqual(response.statusCode, 403);
+				assert.deepStrictEqual(body.status, {
+					code: &#039;forbidden&#039;,
+					message: &#039;Folder exists&#039;,
+				});
+			});
+
+			it(&#039;should fail to create a folder as a non-admin&#039;, async () =&gt; {
+				const { response, body } = await helpers.createFolder(&#039;&#039;, &#039;hisfolder&#039;, regularJar, regular_csrf_token);
+				assert.strictEqual(response.statusCode, 403);
+				assert.deepStrictEqual(body.status, {
+					code: &#039;forbidden&#039;,
+					message: &#039;You are not authorised to make this call&#039;,
+				});
+			});
+
+			it(&#039;should fail to create a folder in wrong directory&#039;, async () =&gt; {
+				const { response, body } = await helpers.createFolder(&#039;../traversing&#039;, &#039;unexpectedfolder&#039;, jar, csrf_token);
+				assert.strictEqual(response.statusCode, 403);
+				assert.deepStrictEqual(body.status, {
+					code: &#039;forbidden&#039;,
+					message: &#039;Invalid path&#039;,
+				});
+			});
+
+			it(&#039;should use basename of given folderName to create new folder&#039;, async () =&gt; {
+				const { response } = await helpers.createFolder(&#039;/myfolder&#039;, &#039;../another folder&#039;, jar, csrf_token);
+				assert.strictEqual(response.statusCode, 200);
+				const slugifiedName = &#039;another-folder&#039;;
+				assert(file.existsSync(path.join(nconf.get(&#039;upload_path&#039;), &#039;myfolder&#039;, slugifiedName)));
+			});
+
+			it(&#039;should fail to delete a file as a non-admin&#039;, async () =&gt; {
+				const { response, body } = await request.delete(`${nconf.get(&#039;url&#039;)}/api/v3/files`, {
+					body: {
+						path: &#039;/system/test.png&#039;,
+					},
+					jar: regularJar,
+					headers: {
+						&#039;x-csrf-token&#039;: regular_csrf_token,
+					},
+				});
+				assert.strictEqual(response.statusCode, 403);
+				assert.deepStrictEqual(body.status, {
+					code: &#039;forbidden&#039;,
+					message: &#039;You are not authorised to make this call&#039;,
+				});
+			});
+		});
+
+		after(emptyUploadsFolder);
+	});
+
+	describe(&#039;library methods&#039;, () =&gt; {
+		describe(&#039;.getOrphans()&#039;, () =&gt; {
+			before(async () =&gt; {
+				const { jar, csrf_token } = await helpers.loginUser(&#039;regular&#039;, &#039;zugzug&#039;);
+				await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/post/upload`, path.join(__dirname, &#039;../test/files/test.png&#039;), {}, jar, csrf_token);
+			});
+
+			it(&#039;should return files with no post associated with them&#039;, async () =&gt; {
+				const orphans = await posts.uploads.getOrphans();
+
+				assert.strictEqual(orphans.length, 1);
+				orphans.forEach((relPath) =&gt; {
+					assert(relPath.startsWith(&#039;files/&#039;));
+					assert(relPath.endsWith(&#039;test.png&#039;));
+				});
+			});
+
+			after(emptyUploadsFolder);
+		});
+
+		describe(&#039;.cleanOrphans()&#039;, () =&gt; {
+			let _orphanExpiryDays;
+
+			before(async () =&gt; {
+				const { jar, csrf_token } = await helpers.loginUser(&#039;regular&#039;, &#039;zugzug&#039;);
+				await helpers.uploadFile(`${nconf.get(&#039;url&#039;)}/api/post/upload`, path.join(__dirname, &#039;../test/files/test.png&#039;), {}, jar, csrf_token);
+
+				// modify all files in uploads folder to be 30 days old
+				const files = await fs.readdir(`${nconf.get(&#039;upload_path&#039;)}/files`);
+				const p30d = (Date.now() - (1000 * 60 * 60 * 24 * 30)) / 1000;
+				await Promise.all(files.map(async (filename) =&gt; {
+					await fs.utimes(`${nconf.get(&#039;upload_path&#039;)}/files/${filename}`, p30d, p30d);
+				}));
+
+				_orphanExpiryDays = meta.config.orphanExpiryDays;
+			});
+
+			it(&#039;should not touch orphans if not configured to do so&#039;, async () =&gt; {
+				await posts.uploads.cleanOrphans();
+				const orphans = await posts.uploads.getOrphans();
+
+				assert.strictEqual(orphans.length, 1);
+			});
+
+			it(&#039;should not touch orphans if they are newer than the configured expiry&#039;, async () =&gt; {
+				meta.config.orphanExpiryDays = 60;
+				await posts.uploads.cleanOrphans();
+				const orphans = await posts.uploads.getOrphans();
+
+				assert.strictEqual(orphans.length, 1);
+			});
+
+			it(&#039;should delete orphans older than the configured number of days&#039;, async () =&gt; {
+				meta.config.orphanExpiryDays = 7;
+				await posts.uploads.cleanOrphans();
+				const orphans = await posts.uploads.getOrphans();
+
+				assert.strictEqual(orphans.length, 0);
+			});
+
+			after(async () =&gt; {
+				await emptyUploadsFolder();
+				meta.config.orphanExpiryDays = _orphanExpiryDays;
+			});
+		});
+	});
+});</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

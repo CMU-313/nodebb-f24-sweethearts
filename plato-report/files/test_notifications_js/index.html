@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - test/notifications.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>test/notifications.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">75.92</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">630</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">61.08</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">6.76</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+
+const assert = require(&#039;assert&#039;);
+const nconf = require(&#039;nconf&#039;);
+const util = require(&#039;util&#039;);
+
+const db = require(&#039;./mocks/databasemock&#039;);
+const meta = require(&#039;../src/meta&#039;);
+const user = require(&#039;../src/user&#039;);
+const topics = require(&#039;../src/topics&#039;);
+const categories = require(&#039;../src/categories&#039;);
+const notifications = require(&#039;../src/notifications&#039;);
+const socketNotifications = require(&#039;../src/socket.io/notifications&#039;);
+const groups = require(&#039;../src/groups&#039;);
+
+const sleep = util.promisify(setTimeout);
+
+describe(&#039;Notifications&#039;, () =&gt; {
+	let uid;
+	let notification;
+
+	before((done) =&gt; {
+		user.create({ username: &#039;poster&#039; }, (err, _uid) =&gt; {
+			if (err) {
+				return done(err);
+			}
+
+			uid = _uid;
+			done();
+		});
+	});
+
+	it(&#039;should fail to create notification without a nid&#039;, (done) =&gt; {
+		notifications.create({}, (err) =&gt; {
+			assert.equal(err.message, &#039;[[error:no-notification-id]]&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should create a notification&#039;, (done) =&gt; {
+		notifications.create({
+			bodyShort: &#039;bodyShort&#039;,
+			nid: &#039;notification_id&#039;,
+			path: &#039;/notification/path&#039;,
+			pid: 1,
+		}, (err, _notification) =&gt; {
+			notification = _notification;
+			assert.ifError(err);
+			assert(notification);
+			db.exists(`notifications:${notification.nid}`, (err, exists) =&gt; {
+				assert.ifError(err);
+				assert(exists);
+				db.isSortedSetMember(&#039;notifications&#039;, notification.nid, (err, isMember) =&gt; {
+					assert.ifError(err);
+					assert(isMember);
+					done();
+				});
+			});
+		});
+	});
+
+	it(&#039;should return null if pid is same and importance is lower&#039;, (done) =&gt; {
+		notifications.create({
+			bodyShort: &#039;bodyShort&#039;,
+			nid: &#039;notification_id&#039;,
+			path: &#039;/notification/path&#039;,
+			pid: 1,
+			importance: 1,
+		}, (err, notification) =&gt; {
+			assert.ifError(err);
+			assert.strictEqual(notification, null);
+			done();
+		});
+	});
+
+	it(&#039;should get empty array&#039;, (done) =&gt; {
+		notifications.getMultiple(null, (err, data) =&gt; {
+			assert.ifError(err);
+			assert(Array.isArray(data));
+			assert.equal(data.length, 0);
+			done();
+		});
+	});
+
+	it(&#039;should get notifications&#039;, (done) =&gt; {
+		notifications.getMultiple([notification.nid], (err, notificationsData) =&gt; {
+			assert.ifError(err);
+			assert(Array.isArray(notificationsData));
+			assert(notificationsData[0]);
+			assert.equal(notification.nid, notificationsData[0].nid);
+			done();
+		});
+	});
+
+	it(&#039;should do nothing&#039;, (done) =&gt; {
+		notifications.push(null, [], (err) =&gt; {
+			assert.ifError(err);
+			notifications.push({ nid: null }, [], (err) =&gt; {
+				assert.ifError(err);
+				notifications.push(notification, [], (err) =&gt; {
+					assert.ifError(err);
+					done();
+				});
+			});
+		});
+	});
+
+	it(&#039;should push a notification to uid&#039;, (done) =&gt; {
+		notifications.push(notification, [uid], (err) =&gt; {
+			assert.ifError(err);
+			setTimeout(() =&gt; {
+				db.isSortedSetMember(`uid:${uid}:notifications:unread`, notification.nid, (err, isMember) =&gt; {
+					assert.ifError(err);
+					assert(isMember);
+					done();
+				});
+			}, 2000);
+		});
+	});
+
+	it(&#039;should push a notification to a group&#039;, (done) =&gt; {
+		notifications.pushGroup(notification, &#039;registered-users&#039;, (err) =&gt; {
+			assert.ifError(err);
+			setTimeout(() =&gt; {
+				db.isSortedSetMember(`uid:${uid}:notifications:unread`, notification.nid, (err, isMember) =&gt; {
+					assert.ifError(err);
+					assert(isMember);
+					done();
+				});
+			}, 2000);
+		});
+	});
+
+	it(&#039;should push a notification to groups&#039;, (done) =&gt; {
+		notifications.pushGroups(notification, [&#039;registered-users&#039;, &#039;administrators&#039;], (err) =&gt; {
+			assert.ifError(err);
+			setTimeout(() =&gt; {
+				db.isSortedSetMember(`uid:${uid}:notifications:unread`, notification.nid, (err, isMember) =&gt; {
+					assert.ifError(err);
+					assert(isMember);
+					done();
+				});
+			}, 2000);
+		});
+	});
+
+	it(&#039;should not mark anything with invalid uid or nid&#039;, (done) =&gt; {
+		socketNotifications.markRead({ uid: null }, null, (err) =&gt; {
+			assert.ifError(err);
+			socketNotifications.markRead({ uid: uid }, null, (err) =&gt; {
+				assert.ifError(err);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should mark a notification read&#039;, (done) =&gt; {
+		socketNotifications.markRead({ uid: uid }, notification.nid, (err) =&gt; {
+			assert.ifError(err);
+			db.isSortedSetMember(`uid:${uid}:notifications:unread`, notification.nid, (err, isMember) =&gt; {
+				assert.ifError(err);
+				assert.equal(isMember, false);
+				db.isSortedSetMember(`uid:${uid}:notifications:read`, notification.nid, (err, isMember) =&gt; {
+					assert.ifError(err);
+					assert.equal(isMember, true);
+					done();
+				});
+			});
+		});
+	});
+
+	it(&#039;should not mark anything with invalid uid or nid&#039;, (done) =&gt; {
+		socketNotifications.markUnread({ uid: null }, null, (err) =&gt; {
+			assert.ifError(err);
+			socketNotifications.markUnread({ uid: uid }, null, (err) =&gt; {
+				assert.ifError(err);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should error if notification does not exist&#039;, (done) =&gt; {
+		socketNotifications.markUnread({ uid: uid }, 123123, (err) =&gt; {
+			assert.equal(err.message, &#039;[[error:no-notification]]&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should mark a notification unread&#039;, (done) =&gt; {
+		socketNotifications.markUnread({ uid: uid }, notification.nid, (err) =&gt; {
+			assert.ifError(err);
+			db.isSortedSetMember(`uid:${uid}:notifications:unread`, notification.nid, (err, isMember) =&gt; {
+				assert.ifError(err);
+				assert.equal(isMember, true);
+				db.isSortedSetMember(`uid:${uid}:notifications:read`, notification.nid, (err, isMember) =&gt; {
+					assert.ifError(err);
+					assert.equal(isMember, false);
+					socketNotifications.getCount({ uid: uid }, null, (err, count) =&gt; {
+						assert.ifError(err);
+						assert.equal(count, 1);
+						done();
+					});
+				});
+			});
+		});
+	});
+
+	it(&#039;should mark all notifications read&#039;, (done) =&gt; {
+		socketNotifications.markAllRead({ uid: uid }, null, (err) =&gt; {
+			assert.ifError(err);
+			db.isSortedSetMember(`uid:${uid}:notifications:unread`, notification.nid, (err, isMember) =&gt; {
+				assert.ifError(err);
+				assert.equal(isMember, false);
+				db.isSortedSetMember(`uid:${uid}:notifications:read`, notification.nid, (err, isMember) =&gt; {
+					assert.ifError(err);
+					assert.equal(isMember, true);
+					done();
+				});
+			});
+		});
+	});
+
+	it(&#039;should not do anything&#039;, (done) =&gt; {
+		socketNotifications.markAllRead({ uid: 1000 }, null, (err) =&gt; {
+			assert.ifError(err);
+			done();
+		});
+	});
+
+	it(&#039;should link to the first unread post in a watched topic&#039;, async () =&gt; {
+		const watcherUid = await user.create({ username: &#039;watcher&#039; });
+		const { cid } = await categories.create({
+			name: &#039;Test Category&#039;,
+			description: &#039;Test category created by testing script&#039;,
+		});
+
+		const { topicData } = await topics.post({
+			uid: watcherUid,
+			cid: cid,
+			title: &#039;Test Topic Title&#039;,
+			content: &#039;The content of test topic&#039;,
+		});
+		const { tid } = topicData;
+
+		await topics.follow(tid, watcherUid);
+
+		const { pid } = await topics.reply({
+			uid: uid,
+			content: &#039;This is the first reply.&#039;,
+			tid: tid,
+		});
+
+		await topics.reply({
+			uid: uid,
+			content: &#039;This is the second reply.&#039;,
+			tid: tid,
+		});
+		// notifications are sent asynchronously with a 1 second delay.
+		await sleep(3000);
+		const notifications = await user.notifications.get(watcherUid);
+		assert.equal(notifications.unread.length, 1, &#039;there should be 1 unread notification&#039;);
+		assert.equal(`${nconf.get(&#039;relative_path&#039;)}/post/${pid}`, notifications.unread[0].path, &#039;the notification should link to the first unread post&#039;);
+	});
+
+	it(&#039;should get notification by nid&#039;, (done) =&gt; {
+		socketNotifications.get({ uid: uid }, { nids: [notification.nid] }, (err, data) =&gt; {
+			assert.ifError(err);
+			assert.equal(data[0].bodyShort, &#039;bodyShort&#039;);
+			assert.equal(data[0].nid, &#039;notification_id&#039;);
+			assert.equal(data[0].path, `${nconf.get(&#039;relative_path&#039;)}/notification/path`);
+			done();
+		});
+	});
+
+	it(&#039;should get user\&#039;s notifications&#039;, (done) =&gt; {
+		socketNotifications.get({ uid: uid }, {}, (err, data) =&gt; {
+			assert.ifError(err);
+			assert.equal(data.unread.length, 0);
+			assert.equal(data.read[0].nid, &#039;notification_id&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should error if not logged in&#039;, (done) =&gt; {
+		socketNotifications.deleteAll({ uid: 0 }, null, (err) =&gt; {
+			assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should delete all user notifications&#039;, (done) =&gt; {
+		socketNotifications.deleteAll({ uid: uid }, null, (err) =&gt; {
+			assert.ifError(err);
+			socketNotifications.get({ uid: uid }, {}, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.equal(data.unread.length, 0);
+				assert.equal(data.read.length, 0);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should return empty with falsy uid&#039;, (done) =&gt; {
+		user.notifications.get(0, (err, data) =&gt; {
+			assert.ifError(err);
+			assert.equal(data.read.length, 0);
+			assert.equal(data.unread.length, 0);
+			done();
+		});
+	});
+
+	it(&#039;should get all notifications and filter&#039;, (done) =&gt; {
+		const nid = &#039;willbefiltered&#039;;
+		notifications.create({
+			bodyShort: &#039;bodyShort&#039;,
+			nid: nid,
+			path: &#039;/notification/path&#039;,
+			type: &#039;post&#039;,
+		}, (err, notification) =&gt; {
+			assert.ifError(err);
+			notifications.push(notification, [uid], (err) =&gt; {
+				assert.ifError(err);
+				setTimeout(() =&gt; {
+					user.notifications.getAll(uid, &#039;post&#039;, (err, nids) =&gt; {
+						assert.ifError(err);
+						assert(nids.includes(nid));
+						done();
+					});
+				}, 3000);
+			});
+		});
+	});
+
+	it(&#039;should not get anything if notifications does not exist&#039;, (done) =&gt; {
+		user.notifications.getNotifications([&#039;doesnotexistnid1&#039;, &#039;doesnotexistnid2&#039;], uid, (err, data) =&gt; {
+			assert.ifError(err);
+			assert.deepEqual(data, []);
+			done();
+		});
+	});
+
+	it(&#039;should get daily notifications&#039;, (done) =&gt; {
+		user.notifications.getDailyUnread(uid, (err, data) =&gt; {
+			assert.ifError(err);
+			assert.equal(data[0].nid, &#039;willbefiltered&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should return empty array for invalid interval&#039;, (done) =&gt; {
+		user.notifications.getUnreadInterval(uid, &#039;2 aeons&#039;, (err, data) =&gt; {
+			assert.ifError(err);
+			assert.deepEqual(data, []);
+			done();
+		});
+	});
+
+	it(&#039;should return 0 for falsy uid&#039;, (done) =&gt; {
+		user.notifications.getUnreadCount(0, (err, count) =&gt; {
+			assert.ifError(err);
+			assert.equal(count, 0);
+			done();
+		});
+	});
+
+	it(&#039;should not do anything if uid is falsy&#039;, (done) =&gt; {
+		user.notifications.deleteAll(0, (err) =&gt; {
+			assert.ifError(err);
+			done();
+		});
+	});
+
+	it(&#039;should send notification to followers of user when he posts&#039;, async () =&gt; {
+		const followerUid = await user.create({ username: &#039;follower&#039; });
+		await user.follow(followerUid, uid);
+		const { cid } = await categories.create({
+			name: &#039;Test Category&#039;,
+			description: &#039;Test category created by testing script&#039;,
+		});
+		await topics.post({
+			uid: uid,
+			cid: cid,
+			title: &#039;Test Topic Title&#039;,
+			content: &#039;The content of test topic&#039;,
+		});
+		await sleep(1100);
+		const data = await user.notifications.getAll(followerUid, &#039;&#039;);
+		assert(data);
+	});
+
+	// New tests for faculty reply notifications
+	// Asked help from ChatGPT to generate these tests.
+	describe(&#039;Faculty Reply Notifications&#039;, () =&gt; {
+		let adminUid;
+		let regularUid;
+		let cid;
+		let tid;
+
+		before(async () =&gt; {
+			// Create test users
+			adminUid = await user.create({ username: &#039;admin&#039; });
+			regularUid = await user.create({ username: &#039;regular&#039; });
+
+			// Make the admin user a part of the administrators group
+			await groups.join(&#039;administrators&#039;, adminUid);
+
+			// Create test category and topic
+			cid = await categories.create({
+				name: &#039;Test Category&#039;,
+				description: &#039;Test category created by testing script&#039;,
+			}).then(category =&gt; category.cid);
+
+			tid = await topics.post({
+				uid: regularUid,
+				cid: cid,
+				title: &#039;Test Topic&#039;,
+				content: &#039;This is a test topic&#039;,
+			}).then(result =&gt; result.topicData.tid);
+		});
+
+		it(&#039;should create a faculty-reply notification when an admin (faculty) replies&#039;, async () =&gt; {
+			console.log(&#039;Starting test: should create a faculty-reply notification when an admin (faculty) replies&#039;);
+			const postData = await topics.reply({
+				uid: adminUid,
+				tid: tid,
+				content: &#039;This is a faculty reply&#039;,
+			});
+
+			// Wait for notification to be created
+			await sleep(3000);
+
+			const notifs = await db.getSortedSetRange(`uid:${regularUid}:notifications:unread`, 0, -1);
+			console.log(&#039;Notifications:&#039;, notifs);
+
+			const notifData = await db.getObjects(notifs.map(nid =&gt; `notifications:${nid}`));
+			console.log(&#039;Notification Data:&#039;, notifData);
+
+			const facultyReplyNotif = notifData.find(n =&gt; n.type === &#039;faculty-reply&#039;);
+
+			if (!facultyReplyNotif) {
+				console.log(&#039;All notification types:&#039;, notifData.map(n =&gt; n.type));
+			}
+
+			assert(facultyReplyNotif, &#039;Faculty reply notification should exist&#039;);
+			assert.strictEqual(facultyReplyNotif.bodyShort, `[[notifications:faculty-posted-to, ${postData.user.displayname}, ${postData.topic.title}]]`);
+			console.log(&#039;Finished test: should create a faculty-reply notification when an admin (faculty) replies&#039;);
+		});
+
+		it(&#039;should not create a faculty-reply notification when a regular user replies&#039;, async () =&gt; {
+			console.log(&#039;Starting test: should not create a faculty-reply notification when a regular user replies&#039;);
+			// Clear existing notifications
+			await db.delete(`uid:${regularUid}:notifications:unread`);
+
+			const beforeNotifs = await db.getSortedSetRange(`uid:${regularUid}:notifications:unread`, 0, -1);
+			console.log(&#039;Notifications before reply:&#039;, beforeNotifs);
+
+			const replyData = await topics.reply({
+				uid: regularUid,
+				tid: tid,
+				content: &#039;This is a regular user reply&#039;,
+			});
+			console.log(&#039;Reply data:&#039;, replyData);
+
+			// Wait for potential notification to be created
+			await sleep(3000);
+
+			const afterNotifs = await db.getSortedSetRange(`uid:${regularUid}:notifications:unread`, 0, -1);
+			console.log(&#039;Notifications after reply:&#039;, afterNotifs);
+
+			const notifData = await db.getObjects(afterNotifs.map(nid =&gt; `notifications:${nid}`));
+			console.log(&#039;Notification Data:&#039;, notifData);
+
+			// Log all notification types
+			console.log(&#039;All notification types:&#039;, notifData.map(n =&gt; n.type));
+
+			// Check that no new notifications were created
+			assert.strictEqual(afterNotifs.length, 0, &#039;No new notifications should be created for a regular user reply&#039;);
+
+			// Logging existing notifications
+			if (notifData.length &gt; 0) {
+				console.log(&#039;Unexpected notifications:&#039;, notifData);
+			}
+			console.log(&#039;Finished test: should not create a faculty-reply notification when a regular user replies&#039;);
+		});
+
+		it(&#039;should allow users to mark faculty-reply notifications as read&#039;, async () =&gt; {
+			console.log(&#039;Starting test: should allow users to mark faculty-reply notifications as read&#039;);
+
+			// Clear existing notifications
+			await user.notifications.deleteAll(regularUid);
+			console.log(&#039;Cleared existing notifications for regularUid:&#039;, regularUid);
+			const isAdmin = await groups.isMember(adminUid, &#039;administrators&#039;);
+
+			// Create a faculty reply
+			const replyData = await topics.reply({
+				uid: adminUid,
+				tid: tid,
+				content: &#039;This is another faculty reply to ensure a notification exists&#039;,
+			});
+			console.log(&#039;Faculty reply created:&#039;, replyData);
+
+			// Wait for notification to be created
+			await sleep(5000);
+
+			// Get all unread notifications
+			const notificationIds = await db.getSortedSetRange(`uid:${regularUid}:notifications:unread`, 0, -1);
+			console.log(&#039;Notification IDs:&#039;, notificationIds);
+
+			const notificationData = await db.getObjects(notificationIds.map(nid =&gt; `notifications:${nid}`));
+			console.log(&#039;Notification Data:&#039;, JSON.stringify(notificationData, null, 2));
+
+			// Check for faculty-reply notification
+			const facultyReplyNotif = notificationData.find(n =&gt; n.nid &amp;&amp; n.nid.includes(&#039;faculty_post&#039;));
+
+			// For debugging purposes
+			if (!facultyReplyNotif) {
+				console.log(&#039;Faculty reply notification not found. Notification types:&#039;, notificationData.map(n =&gt; n.type));
+			} else {
+				console.log(&#039;Found faculty reply notification:&#039;, facultyReplyNotif);
+			}
+
+			assert(facultyReplyNotif, &#039;Faculty reply notification should exist&#039;);
+
+			if (facultyReplyNotif) {
+				await socketNotifications.markRead({ uid: regularUid }, facultyReplyNotif.nid);
+
+				const updatedNotifications = await db.getSortedSetRange(`uid:${regularUid}:notifications:read`, 0, -1);
+				const readFacultyReplyNotif = updatedNotifications.includes(facultyReplyNotif.nid);
+
+				assert(readFacultyReplyNotif, &#039;Faculty reply notification should be marked as read&#039;);
+			}
+
+			console.log(&#039;Finished test: should allow users to mark faculty-reply notifications as read&#039;);
+		});
+
+		it(&#039;should allow users to configure faculty-reply notification preferences&#039;, async () =&gt; {
+			console.log(&#039;Starting test: should allow users to configure faculty-reply notification preferences&#039;);
+			await user.setSetting(regularUid, &#039;notificationType_faculty-reply&#039;, &#039;notification&#039;);
+
+			const settings = await user.getSettings(regularUid);
+			assert.strictEqual(settings[&#039;notificationType_faculty-reply&#039;], &#039;notification&#039;, &#039;Faculty reply notification preference should be set&#039;);
+			console.log(&#039;Finished test: should allow users to configure faculty-reply notification preferences&#039;);
+		});
+
+		it(&#039;should create multiple faculty-reply notifications for multiple admin replies&#039;, async () =&gt; {
+			console.log(&#039;Starting test: should create multiple faculty-reply notifications for multiple admin replies&#039;);
+
+			// Clear existing notifications
+			await user.notifications.deleteAll(regularUid);
+
+			// Creating multiple faculty replies
+			for (let i = 0; i &lt; 3; i++) {
+				topics.reply({
+					uid: adminUid,
+					tid: tid,
+					content: `This is faculty reply number ${i + 1}`,
+				});
+			}
+
+			// Wait for notifications to be created
+			await sleep(5000);
+
+			const notificationIds = await db.getSortedSetRange(`uid:${regularUid}:notifications:unread`, 0, -1);
+			const notificationData = await db.getObjects(notificationIds.map(nid =&gt; `notifications:${nid}`));
+
+			const facultyReplyNotifs = notificationData.filter(n =&gt; n.nid &amp;&amp; n.nid.includes(&#039;faculty_post&#039;));
+
+			assert.strictEqual(facultyReplyNotifs.length, 3, &#039;Should have 3 faculty reply notifications&#039;);
+			console.log(&#039;Finished test: should create multiple faculty-reply notifications for multiple admin replies&#039;);
+		});
+
+		after(async () =&gt; {
+			// Clean up users, category, and topic
+			await Promise.all([
+				user.delete(adminUid),
+				user.delete(regularUid),
+			].map(p =&gt; p.catch(() =&gt; { /* ignore errors */ })));
+			await db.delete(`category:${cid}`);
+			await topics.purge(tid);
+
+			// Remove admin from administrators group
+			await groups.leave(&#039;administrators&#039;, adminUid);
+		});
+	});
+
+
+	it(&#039;should send welcome notification&#039;, (done) =&gt; {
+		meta.config.welcomeNotification = &#039;welcome to the forums&#039;;
+		user.notifications.sendWelcomeNotification(uid, (err) =&gt; {
+			assert.ifError(err);
+			user.notifications.sendWelcomeNotification(uid, (err) =&gt; {
+				assert.ifError(err);
+				setTimeout(() =&gt; {
+					user.notifications.getAll(uid, &#039;&#039;, (err, data) =&gt; {
+						meta.config.welcomeNotification = &#039;&#039;;
+						assert.ifError(err);
+						assert(data.includes(`welcome_${uid}`), data);
+						done();
+					});
+				}, 2000);
+			});
+		});
+	});
+
+	it(&#039;should prune notifications&#039;, (done) =&gt; {
+		notifications.create({
+			bodyShort: &#039;bodyShort&#039;,
+			nid: &#039;tobedeleted&#039;,
+			path: &#039;/notification/path&#039;,
+		}, (err, notification) =&gt; {
+			assert.ifError(err);
+			notifications.prune((err) =&gt; {
+				assert.ifError(err);
+				const month = 2592000000;
+				db.sortedSetAdd(&#039;notifications&#039;, Date.now() - (2 * month), notification.nid, (err) =&gt; {
+					assert.ifError(err);
+					notifications.prune((err) =&gt; {
+						assert.ifError(err);
+						notifications.get(notification.nid, (err, data) =&gt; {
+							assert.ifError(err);
+							assert(!data);
+							done();
+						});
+					});
+				});
+			});
+		});
+	});
+});</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

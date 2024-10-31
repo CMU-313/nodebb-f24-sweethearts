@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - test/socket.io.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>test/socket.io.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">74.29</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">764</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">44.51</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">9.87</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+// see https://gist.github.com/jfromaniello/4087861#gistcomment-1447029
+
+
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = &#039;0&#039;;
+
+const util = require(&#039;util&#039;);
+
+const sleep = util.promisify(setTimeout);
+const assert = require(&#039;assert&#039;);
+const nconf = require(&#039;nconf&#039;);
+
+const db = require(&#039;./mocks/databasemock&#039;);
+const user = require(&#039;../src/user&#039;);
+const groups = require(&#039;../src/groups&#039;);
+const categories = require(&#039;../src/categories&#039;);
+const helpers = require(&#039;./helpers&#039;);
+const meta = require(&#039;../src/meta&#039;);
+const events = require(&#039;../src/events&#039;);
+
+const socketAdmin = require(&#039;../src/socket.io/admin&#039;);
+
+describe(&#039;socket.io&#039;, () =&gt; {
+	let io;
+	let cid;
+	let tid;
+	let adminUid;
+	let regularUid;
+
+	before(async () =&gt; {
+		const data = await Promise.all([
+			user.create({ username: &#039;admin&#039;, password: &#039;adminpwd&#039; }),
+			user.create({ username: &#039;regular&#039;, password: &#039;regularpwd&#039; }),
+			categories.create({
+				name: &#039;Test Category&#039;,
+				description: &#039;Test category created by testing script&#039;,
+			}),
+		]);
+		adminUid = data[0];
+		await groups.join(&#039;administrators&#039;, data[0]);
+
+		regularUid = data[1];
+		await user.setUserField(regularUid, &#039;email&#039;, &#039;regular@test.com&#039;);
+		await user.email.confirmByUid(regularUid);
+
+		cid = data[2].cid;
+	});
+
+
+	it(&#039;should connect and auth properly&#039;, async () =&gt; {
+		const { response, csrf_token } = await helpers.loginUser(&#039;admin&#039;, &#039;adminpwd&#039;);
+		io = await helpers.connectSocketIO(response, csrf_token);
+		assert(io);
+		assert(io.emit);
+	});
+
+	it(&#039;should return error for unknown event&#039;, (done) =&gt; {
+		io.emit(&#039;unknown.event&#039;, (err) =&gt; {
+			assert(err);
+			assert.equal(err.message, &#039;[[error:invalid-event, unknown.event]]&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should return error for unknown event&#039;, (done) =&gt; {
+		io.emit(&#039;user.gdpr.__proto__.constructor.toString&#039;, (err) =&gt; {
+			assert(err);
+			assert.equal(err.message, &#039;[[error:invalid-event, user.gdpr.__proto__.constructor.toString]]&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should return error for unknown event&#039;, (done) =&gt; {
+		io.emit(&#039;constructor.toString&#039;, (err) =&gt; {
+			assert(err);
+			assert.equal(err.message, &#039;[[error:invalid-event, constructor.toString]]&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should get installed themes&#039;, (done) =&gt; {
+		const themes = [&#039;nodebb-theme-persona&#039;];
+		io.emit(&#039;admin.themes.getInstalled&#039;, (err, data) =&gt; {
+			assert.ifError(err);
+			assert(data);
+			const installed = data.map(theme =&gt; theme.id);
+			themes.forEach((theme) =&gt; {
+				assert(installed.includes(theme));
+			});
+			done();
+		});
+	});
+
+	it(&#039;should ban a user&#039;, async () =&gt; {
+		const apiUser = require(&#039;../src/api/users&#039;);
+		await apiUser.ban({ uid: adminUid }, { uid: regularUid, reason: &#039;spammer&#039; });
+		const data = await user.getLatestBanInfo(regularUid);
+		assert(data.uid);
+		assert(data.timestamp);
+		assert(data.hasOwnProperty(&#039;banned_until&#039;));
+		assert(data.hasOwnProperty(&#039;banned_until_readable&#039;));
+		assert.equal(data.reason, &#039;spammer&#039;);
+	});
+
+	it(&#039;should return ban reason&#039;, (done) =&gt; {
+		user.bans.getReason(regularUid, (err, reason) =&gt; {
+			assert.ifError(err);
+			assert.equal(reason, &#039;spammer&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should unban a user&#039;, async () =&gt; {
+		const apiUser = require(&#039;../src/api/users&#039;);
+		await apiUser.unban({ uid: adminUid }, { uid: regularUid });
+		const isBanned = await user.bans.isBanned(regularUid);
+		assert(!isBanned);
+	});
+
+	it(&#039;should make user admin&#039;, (done) =&gt; {
+		socketAdmin.user.makeAdmins({ uid: adminUid }, [regularUid], (err) =&gt; {
+			assert.ifError(err);
+			groups.isMember(regularUid, &#039;administrators&#039;, (err, isMember) =&gt; {
+				assert.ifError(err);
+				assert(isMember);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should make user non-admin&#039;, (done) =&gt; {
+		socketAdmin.user.removeAdmins({ uid: adminUid }, [regularUid], (err) =&gt; {
+			assert.ifError(err);
+			groups.isMember(regularUid, &#039;administrators&#039;, (err, isMember) =&gt; {
+				assert.ifError(err);
+				assert(!isMember);
+				done();
+			});
+		});
+	});
+
+	describe(&#039;user create/delete&#039;, () =&gt; {
+		let uid;
+		const apiUsers = require(&#039;../src/api/users&#039;);
+		it(&#039;should create a user&#039;, async () =&gt; {
+			const userData = await apiUsers.create({ uid: adminUid }, { username: &#039;foo1&#039; });
+			uid = userData.uid;
+			const isMember = await groups.isMember(userData.uid, &#039;registered-users&#039;);
+			assert(isMember);
+		});
+
+		it(&#039;should delete users&#039;, async () =&gt; {
+			await apiUsers.delete({ uid: adminUid }, { uid });
+			await sleep(500);
+			const isMember = await groups.isMember(uid, &#039;registered-users&#039;);
+			assert(!isMember);
+		});
+
+		it(&#039;should error if user does not exist&#039;, async () =&gt; {
+			let err;
+			try {
+				await apiUsers.deleteMany({ uid: adminUid }, { uids: [uid] });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.strictEqual(err.message, &#039;[[error:no-user]]&#039;);
+		});
+
+		it(&#039;should delete users and their content&#039;, async () =&gt; {
+			const userData = await apiUsers.create({ uid: adminUid }, { username: &#039;foo2&#039; });
+			await apiUsers.deleteMany({ uid: adminUid }, { uids: [userData.uid] });
+			await sleep(500);
+			const isMember = await groups.isMember(userData.uid, &#039;registered-users&#039;);
+			assert(!isMember);
+		});
+
+		it(&#039;should error with invalid data&#039;, async () =&gt; {
+			let err;
+			try {
+				await apiUsers.create({ uid: adminUid }, null);
+			} catch (_err) {
+				err = _err;
+			}
+			assert.strictEqual(err.message, &#039;[[error:invalid-data]]&#039;);
+		});
+	});
+
+	it(&#039;should load user groups&#039;, async () =&gt; {
+		const { users } = await socketAdmin.user.loadGroups({ uid: adminUid }, [adminUid]);
+		assert.strictEqual(users[0].username, &#039;admin&#039;);
+		assert(Array.isArray(users[0].groups));
+	});
+
+	it(&#039;should reset lockouts&#039;, (done) =&gt; {
+		socketAdmin.user.resetLockouts({ uid: adminUid }, [regularUid], (err) =&gt; {
+			assert.ifError(err);
+			done();
+		});
+	});
+
+	describe(&#039;validation emails&#039;, () =&gt; {
+		const plugins = require(&#039;../src/plugins&#039;);
+
+		async function dummyEmailerHook(data) {
+			// pretend to handle sending emails
+		}
+		before(() =&gt; {
+			// Attach an emailer hook so related requests do not error
+			plugins.hooks.register(&#039;emailer-test&#039;, {
+				hook: &#039;static:email.send&#039;,
+				method: dummyEmailerHook,
+			});
+		});
+		after(() =&gt; {
+			plugins.hooks.unregister(&#039;emailer-test&#039;, &#039;static:email.send&#039;);
+		});
+
+		it(&#039;should validate emails&#039;, (done) =&gt; {
+			socketAdmin.user.validateEmail({ uid: adminUid }, [regularUid], (err) =&gt; {
+				assert.ifError(err);
+				user.getUserField(regularUid, &#039;email:confirmed&#039;, (err, emailConfirmed) =&gt; {
+					assert.ifError(err);
+					assert.equal(parseInt(emailConfirmed, 10), 1);
+					done();
+				});
+			});
+		});
+
+		it(&#039;should error with invalid uids&#039;, (done) =&gt; {
+			socketAdmin.user.sendValidationEmail({ uid: adminUid }, null, (err) =&gt; {
+				assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should send validation email&#039;, (done) =&gt; {
+			socketAdmin.user.sendValidationEmail({ uid: adminUid }, [regularUid], (err) =&gt; {
+				assert.ifError(err);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should push unread notifications on reconnect&#039;, (done) =&gt; {
+		const socketMeta = require(&#039;../src/socket.io/meta&#039;);
+		socketMeta.reconnected({ uid: 1 }, {}, (err) =&gt; {
+			assert.ifError(err);
+			done();
+		});
+	});
+
+
+	it(&#039;should error if the room is missing&#039;, (done) =&gt; {
+		io.emit(&#039;meta.rooms.enter&#039;, null, (err) =&gt; {
+			assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should return if uid is 0&#039;, (done) =&gt; {
+		const socketMeta = require(&#039;../src/socket.io/meta&#039;);
+		socketMeta.rooms.enter({ uid: 0 }, null, (err) =&gt; {
+			assert.ifError(err);
+			done();
+		});
+	});
+
+	it(&#039;should join a room&#039;, (done) =&gt; {
+		io.emit(&#039;meta.rooms.enter&#039;, { enter: &#039;recent_topics&#039; }, (err) =&gt; {
+			assert.ifError(err);
+			done();
+		});
+	});
+
+	it(&#039;should leave current room&#039;, (done) =&gt; {
+		io.emit(&#039;meta.rooms.leaveCurrent&#039;, {}, (err) =&gt; {
+			assert.ifError(err);
+			done();
+		});
+	});
+
+	it(&#039;should get server time&#039;, (done) =&gt; {
+		io.emit(&#039;admin.getServerTime&#039;, null, (err, time) =&gt; {
+			assert.ifError(err);
+			assert(time);
+			done();
+		});
+	});
+
+	it(&#039;should error to get daily analytics with invalid data&#039;, (done) =&gt; {
+		io.emit(&#039;admin.analytics.get&#039;, null, (err) =&gt; {
+			assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should get daily analytics&#039;, (done) =&gt; {
+		io.emit(&#039;admin.analytics.get&#039;, { graph: &#039;traffic&#039;, units: &#039;days&#039; }, (err, data) =&gt; {
+			assert.ifError(err);
+			assert(data);
+			assert(data.summary);
+			done();
+		});
+	});
+
+	it(&#039;should get hourly analytics&#039;, (done) =&gt; {
+		io.emit(&#039;admin.analytics.get&#039;, { graph: &#039;traffic&#039;, units: &#039;hours&#039; }, (err, data) =&gt; {
+			assert.ifError(err);
+			assert(data);
+			assert(data.summary);
+			done();
+		});
+	});
+
+	it(&#039;should allow a custom date range for traffic graph analytics&#039;, (done) =&gt; {
+		io.emit(&#039;admin.analytics.get&#039;, { graph: &#039;traffic&#039;, units: &#039;days&#039;, amount: &#039;7&#039; }, (err, data) =&gt; {
+			assert.ifError(err);
+			assert(data);
+			assert(data.pageviews);
+			assert(data.uniqueVisitors);
+			assert.strictEqual(7, data.pageviews.length);
+			assert.strictEqual(7, data.uniqueVisitors.length);
+			done();
+		});
+	});
+
+	it(&#039;should return error&#039;, (done) =&gt; {
+		socketAdmin.before({ uid: 10 }, &#039;someMethod&#039;, {}, (err) =&gt; {
+			assert.equal(err.message, &#039;[[error:no-privileges]]&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should get room stats&#039;, (done) =&gt; {
+		io.emit(&#039;meta.rooms.enter&#039;, { enter: &#039;topic_1&#039; }, (err) =&gt; {
+			assert.ifError(err);
+			socketAdmin.rooms.getAll({ uid: 10 }, {}, (err) =&gt; {
+				assert.ifError(err);
+				setTimeout(() =&gt; {
+					socketAdmin.rooms.getAll({ uid: 10 }, {}, (err, data) =&gt; {
+						assert.ifError(err);
+						assert(data.hasOwnProperty(&#039;onlineGuestCount&#039;));
+						assert(data.hasOwnProperty(&#039;onlineRegisteredCount&#039;));
+						assert(data.hasOwnProperty(&#039;socketCount&#039;));
+						assert(data.hasOwnProperty(&#039;topTenTopics&#039;));
+						assert(data.hasOwnProperty(&#039;users&#039;));
+						done();
+					});
+				}, 1000);
+			});
+		});
+	});
+
+	it(&#039;should get room stats&#039;, (done) =&gt; {
+		io.emit(&#039;meta.rooms.enter&#039;, { enter: &#039;category_1&#039; }, (err) =&gt; {
+			assert.ifError(err);
+			socketAdmin.rooms.getAll({ uid: 10 }, {}, (err) =&gt; {
+				assert.ifError(err);
+				setTimeout(() =&gt; {
+					socketAdmin.rooms.getAll({ uid: 10 }, {}, (err, data) =&gt; {
+						assert.ifError(err);
+						assert.equal(data.users.category, 1, JSON.stringify(data, null, 4));
+						done();
+					});
+				}, 1000);
+			});
+		});
+	});
+
+	it(&#039;should get admin search dictionary&#039;, (done) =&gt; {
+		socketAdmin.getSearchDict({ uid: adminUid }, {}, (err, data) =&gt; {
+			assert.ifError(err);
+			assert(Array.isArray(data));
+			assert(data[0].namespace);
+			assert(data[0].translations);
+			assert(data[0].title);
+			done();
+		});
+	});
+
+	it(&#039;should fire event&#039;, (done) =&gt; {
+		io.on(&#039;testEvent&#039;, (data) =&gt; {
+			assert.equal(data.foo, 1);
+			done();
+		});
+		socketAdmin.fireEvent({ uid: adminUid }, { name: &#039;testEvent&#039;, payload: { foo: 1 } }, (err) =&gt; {
+			assert.ifError(err);
+		});
+	});
+
+	it(&#039;should error with invalid data&#039;, (done) =&gt; {
+		socketAdmin.themes.set({ uid: adminUid }, null, (err) =&gt; {
+			assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should set theme to bootswatch&#039;, (done) =&gt; {
+		socketAdmin.themes.set({ uid: adminUid }, {
+			type: &#039;bootswatch&#039;,
+			src: &#039;//maxcdn.bootstrapcdn.com/bootswatch/latest/darkly/bootstrap.min.css&#039;,
+			id: &#039;darkly&#039;,
+		}, (err) =&gt; {
+			assert.ifError(err);
+			meta.configs.getFields([&#039;theme:src&#039;, &#039;bootswatchSkin&#039;], (err, fields) =&gt; {
+				assert.ifError(err);
+				assert.equal(fields[&#039;theme:src&#039;], &#039;//maxcdn.bootstrapcdn.com/bootswatch/latest/darkly/bootstrap.min.css&#039;);
+				assert.equal(fields.bootswatchSkin, &#039;darkly&#039;);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should set theme to local persona&#039;, (done) =&gt; {
+		socketAdmin.themes.set({ uid: adminUid }, { type: &#039;local&#039;, id: &#039;nodebb-theme-persona&#039; }, (err) =&gt; {
+			assert.ifError(err);
+			meta.configs.get(&#039;theme:id&#039;, (err, id) =&gt; {
+				assert.ifError(err);
+				assert.equal(id, &#039;nodebb-theme-persona&#039;);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should toggle plugin active&#039;, (done) =&gt; {
+		socketAdmin.plugins.toggleActive({ uid: adminUid }, &#039;nodebb-plugin-location-to-map&#039;, (err, data) =&gt; {
+			assert.ifError(err);
+			assert.deepEqual(data, { id: &#039;nodebb-plugin-location-to-map&#039;, active: true });
+			done();
+		});
+	});
+
+	describe(&#039;install/upgrade plugin&#039;, () =&gt; {
+		it(&#039;should toggle plugin install&#039;, function (done) {
+			this.timeout(0);
+			const oldValue = process.env.NODE_ENV;
+			process.env.NODE_ENV = &#039;development&#039;;
+			socketAdmin.plugins.toggleInstall({
+				uid: adminUid,
+			}, {
+				id: &#039;nodebb-plugin-location-to-map&#039;,
+				version: &#039;latest&#039;,
+			}, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.equal(data.name, &#039;nodebb-plugin-location-to-map&#039;);
+				process.env.NODE_ENV = oldValue;
+				done();
+			});
+		});
+
+		it(&#039;should upgrade plugin&#039;, function (done) {
+			this.timeout(0);
+			const oldValue = process.env.NODE_ENV;
+			process.env.NODE_ENV = &#039;development&#039;;
+			socketAdmin.plugins.upgrade({
+				uid: adminUid,
+			}, {
+				id: &#039;nodebb-plugin-location-to-map&#039;,
+				version: &#039;latest&#039;,
+			}, (err) =&gt; {
+				assert.ifError(err);
+				process.env.NODE_ENV = oldValue;
+				done();
+			});
+		});
+	});
+
+	it(&#039;should get list of active plugins&#039;, (done) =&gt; {
+		socketAdmin.plugins.getActive({ uid: adminUid }, {}, (err, data) =&gt; {
+			assert.ifError(err);
+			assert(Array.isArray(data));
+			done();
+		});
+	});
+
+	it(&#039;should order active plugins&#039;, (done) =&gt; {
+		const data = [
+			{ name: &#039;nodebb-theme-persona&#039;, order: 0 },
+			{ name: &#039;nodebb-plugin-dbsearch&#039;, order: 1 },
+			{ name: &#039;nodebb-plugin-markdown&#039;, order: 2 },
+			{ ignoreme: &#039;wrong data&#039; },
+		];
+		socketAdmin.plugins.orderActivePlugins({ uid: adminUid }, data, (err) =&gt; {
+			assert.ifError(err);
+			db.sortedSetRank(&#039;plugins:active&#039;, &#039;nodebb-plugin-dbsearch&#039;, (err, rank) =&gt; {
+				assert.ifError(err);
+				assert.equal(rank, 1);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should error with invalid data&#039;, (done) =&gt; {
+		socketAdmin.widgets.set({ uid: adminUid }, null, (err) =&gt; {
+			assert.equal(err.message, &#039;[[error:invalid-data]]&#039;);
+			done();
+		});
+	});
+
+	it(&#039;should error with invalid data&#039;, (done) =&gt; {
+		const data = [
+			{
+				template: &#039;global&#039;,
+				location: &#039;sidebar&#039;,
+				widgets: [{ widget: &#039;html&#039;, data: { html: &#039;test&#039;, title: &#039;test&#039;, container: &#039;&#039; } }],
+			},
+		];
+		socketAdmin.widgets.set({ uid: adminUid }, data, (err) =&gt; {
+			assert.ifError(err);
+			db.getObjectField(&#039;widgets:global&#039;, &#039;sidebar&#039;, (err, widgetData) =&gt; {
+				assert.ifError(err);
+
+				assert.equal(JSON.parse(widgetData)[0].data.html, &#039;test&#039;);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should clear sitemap cache&#039;, async () =&gt; {
+		await socketAdmin.settings.clearSitemapCache({ uid: adminUid }, {});
+	});
+
+	it(&#039;should send test email&#039;, async () =&gt; {
+		const tpls = [&#039;digest&#039;, &#039;banned&#039;, &#039;verify&#039;, &#039;welcome&#039;, &#039;notification&#039;, &#039;invitation&#039;];
+		try {
+			for (const tpl of tpls) {
+				// eslint-disable-next-line no-await-in-loop
+				await socketAdmin.email.test({ uid: adminUid }, { template: tpl });
+			}
+		} catch (err) {
+			if (err.message !== &#039;[[error:sendmail-not-found]]&#039;) {
+				assert.ifError(err);
+			}
+		}
+	});
+
+	it(&#039;should not error when resending digests&#039;, async () =&gt; {
+		await socketAdmin.digest.resend({ uid: adminUid }, { action: &#039;resend-day&#039;, uid: adminUid });
+		await socketAdmin.digest.resend({ uid: adminUid }, { action: &#039;resend-day&#039; });
+	});
+
+	it(&#039;should error with invalid interval&#039;, async () =&gt; {
+		const oldValue = meta.config.dailyDigestFreq;
+		meta.config.dailyDigestFreq = &#039;off&#039;;
+		try {
+			await socketAdmin.digest.resend({ uid: adminUid }, { action: &#039;resend-&#039; });
+		} catch (err) {
+			assert.strictEqual(err.message, &#039;[[error:digest-not-enabled]]&#039;);
+		}
+		meta.config.dailyDigestFreq = oldValue;
+	});
+
+	it(&#039;should get logs&#039;, (done) =&gt; {
+		const fs = require(&#039;fs&#039;);
+		const path = require(&#039;path&#039;);
+		meta.logs.path = path.join(nconf.get(&#039;base_dir&#039;), &#039;test/files&#039;, &#039;output.log&#039;);
+		fs.appendFile(meta.logs.path, &#039;some logs&#039;, (err) =&gt; {
+			assert.ifError(err);
+
+			socketAdmin.logs.get({ uid: adminUid }, {}, (err, data) =&gt; {
+				assert.ifError(err);
+				assert(data);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should clear logs&#039;, (done) =&gt; {
+		socketAdmin.logs.clear({ uid: adminUid }, {}, (err) =&gt; {
+			assert.ifError(err);
+			socketAdmin.logs.get({ uid: adminUid }, {}, (err, data) =&gt; {
+				assert.ifError(err);
+				assert.equal(data.length, 0);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should clear errors&#039;, (done) =&gt; {
+		socketAdmin.errors.clear({ uid: adminUid }, {}, (err) =&gt; {
+			assert.ifError(err);
+			db.exists(&#039;error:404&#039;, (err, exists) =&gt; {
+				assert.ifError(err);
+				assert(!exists);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should delete a single event&#039;, (done) =&gt; {
+		db.getSortedSetRevRange(&#039;events:time&#039;, 0, 0, (err, eids) =&gt; {
+			assert.ifError(err);
+			events.deleteEvents(eids, (err) =&gt; {
+				assert.ifError(err);
+				db.isSortedSetMembers(&#039;events:time&#039;, eids, (err, isMembers) =&gt; {
+					assert.ifError(err);
+					assert(!isMembers.includes(true));
+					done();
+				});
+			});
+		});
+	});
+
+	it(&#039;should delete all events&#039;, (done) =&gt; {
+		events.deleteAll((err) =&gt; {
+			assert.ifError(err);
+			db.sortedSetCard(&#039;events:time&#039;, (err, count) =&gt; {
+				assert.ifError(err);
+				assert.equal(count, 0);
+				done();
+			});
+		});
+	});
+
+	describe(&#039;logger&#039;, () =&gt; {
+		const logger = require(&#039;../src/logger&#039;);
+		const index = require(&#039;../src/socket.io&#039;);
+		const fs = require(&#039;fs&#039;);
+		const path = require(&#039;path&#039;);
+
+		it(&#039;should enable logging&#039;, (done) =&gt; {
+			meta.config.loggerStatus = 1;
+			meta.config.loggerIOStatus = 1;
+			const loggerPath = path.join(__dirname, &#039;..&#039;, &#039;logs&#039;, &#039;logger.log&#039;);
+			logger.monitorConfig({ io: index.server }, { key: &#039;loggerPath&#039;, value: loggerPath });
+			setTimeout(() =&gt; {
+				io.emit(&#039;meta.rooms.enter&#039;, { enter: &#039;recent_topics&#039; }, (err) =&gt; {
+					assert.ifError(err);
+					fs.readFile(loggerPath, &#039;utf-8&#039;, (err, content) =&gt; {
+						assert.ifError(err);
+						assert(content);
+						done();
+					});
+				});
+			}, 500);
+		});
+
+		after((done) =&gt; {
+			meta.config.loggerStatus = 0;
+			meta.config.loggerIOStatus = 0;
+			done();
+		});
+	});
+
+	describe(&#039;password reset&#039;, () =&gt; {
+		const socketUser = require(&#039;../src/socket.io/user&#039;);
+
+		it(&#039;should error if uids is not array&#039;, (done) =&gt; {
+			socketAdmin.user.sendPasswordResetEmail({ uid: adminUid }, null, (err) =&gt; {
+				assert.strictEqual(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should error if uid doesnt have email&#039;, (done) =&gt; {
+			socketAdmin.user.sendPasswordResetEmail({ uid: adminUid }, [adminUid], (err) =&gt; {
+				assert.strictEqual(err.message, &#039;[[error:user-doesnt-have-email, admin]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should send password reset email&#039;, async () =&gt; {
+			await user.setUserField(adminUid, &#039;email&#039;, &#039;admin_test@nodebb.org&#039;);
+			await user.email.confirmByUid(adminUid);
+			await socketAdmin.user.sendPasswordResetEmail({ uid: adminUid }, [adminUid]);
+		});
+
+		it(&#039;should error if uids is not array&#039;, (done) =&gt; {
+			socketAdmin.user.forcePasswordReset({ uid: adminUid }, null, (err) =&gt; {
+				assert.strictEqual(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+
+		it(&#039;should for password reset&#039;, async () =&gt; {
+			const then = Date.now();
+			const uid = await user.create({ username: &#039;forceme&#039;, password: &#039;123345&#039; });
+			await socketAdmin.user.forcePasswordReset({ uid: adminUid }, [uid]);
+			const pwExpiry = await user.getUserField(uid, &#039;passwordExpiry&#039;);
+			const sleep = util.promisify(setTimeout);
+			await sleep(500);
+			assert(pwExpiry &gt; then &amp;&amp; pwExpiry &lt; Date.now());
+		});
+
+		it(&#039;should not error on valid email&#039;, async () =&gt; {
+			await socketUser.reset.send({ uid: 0 }, &#039;regular@test.com&#039;);
+			const [count, eventsData] = await Promise.all([
+				db.sortedSetCount(&#039;reset:issueDate&#039;, 0, Date.now()),
+				events.getEvents({ filter: &#039;&#039;, start: 0, stop: 0 }),
+			]);
+			assert.strictEqual(count, 2);
+
+			// Event validity
+			assert.strictEqual(eventsData.length, 1);
+			const event = eventsData[0];
+			assert.strictEqual(event.type, &#039;password-reset&#039;);
+			assert.strictEqual(event.text, &#039;[[success:success]]&#039;);
+		});
+
+		it(&#039;should not generate code if rate limited&#039;, async () =&gt; {
+			await assert.rejects(
+				socketUser.reset.send({ uid: 0 }, &#039;regular@test.com&#039;),
+				{ message: &#039;[[error:reset-rate-limited]]&#039; },
+			);
+			const [count, eventsData] = await Promise.all([
+				db.sortedSetCount(&#039;reset:issueDate&#039;, 0, Date.now()),
+				events.getEvents({ filter: &#039;&#039;, start: 0, stop: 0 }),
+			]);
+			assert.strictEqual(count, 2);
+
+			// Event validity
+			assert.strictEqual(eventsData.length, 1);
+			const event = eventsData[0];
+			assert.strictEqual(event.type, &#039;password-reset&#039;);
+			assert.strictEqual(event.text, &#039;[[error:reset-rate-limited]]&#039;);
+		});
+
+		it(&#039;should not error on invalid email (but not generate reset code)&#039;, async () =&gt; {
+			await socketUser.reset.send({ uid: 0 }, &#039;irregular@test.com&#039;);
+			const count = await db.sortedSetCount(&#039;reset:issueDate&#039;, 0, Date.now());
+			assert.strictEqual(count, 2);
+		});
+
+		it(&#039;should error on no email&#039;, (done) =&gt; {
+			socketUser.reset.send({ uid: 0 }, &#039;&#039;, (err) =&gt; {
+				assert(err instanceof Error);
+				assert.strictEqual(err.message, &#039;[[error:invalid-data]]&#039;);
+				done();
+			});
+		});
+	});
+
+	it(&#039;should clear caches&#039;, async () =&gt; {
+		await socketAdmin.cache.clear({ uid: adminUid }, { name: &#039;post&#039; });
+		await socketAdmin.cache.clear({ uid: adminUid }, { name: &#039;object&#039; });
+		await socketAdmin.cache.clear({ uid: adminUid }, { name: &#039;group&#039; });
+		await socketAdmin.cache.clear({ uid: adminUid }, { name: &#039;local&#039; });
+	});
+
+	it(&#039;should toggle caches&#039;, async () =&gt; {
+		const caches = {
+			post: require(&#039;../src/posts/cache&#039;).getOrCreate(),
+			object: require(&#039;../src/database&#039;).objectCache,
+			group: require(&#039;../src/groups&#039;).cache,
+			local: require(&#039;../src/cache&#039;),
+		};
+
+		await socketAdmin.cache.toggle({ uid: adminUid }, { name: &#039;post&#039;, enabled: !caches.post.enabled });
+		if (caches.object) {
+			await socketAdmin.cache.toggle({ uid: adminUid }, { name: &#039;object&#039;, enabled: !caches.object.enabled });
+		}
+		await socketAdmin.cache.toggle({ uid: adminUid }, { name: &#039;group&#039;, enabled: !caches.group.enabled });
+		await socketAdmin.cache.toggle({ uid: adminUid }, { name: &#039;local&#039;, enabled: !caches.local.enabled });
+
+		// call again to return back to original state
+		await socketAdmin.cache.toggle({ uid: adminUid }, { name: &#039;post&#039;, enabled: !caches.post.enabled });
+		if (caches.object) {
+			await socketAdmin.cache.toggle({ uid: adminUid }, { name: &#039;object&#039;, enabled: !caches.object.enabled });
+		}
+		await socketAdmin.cache.toggle({ uid: adminUid }, { name: &#039;group&#039;, enabled: !caches.group.enabled });
+		await socketAdmin.cache.toggle({ uid: adminUid }, { name: &#039;local&#039;, enabled: !caches.local.enabled });
+	});
+});</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+name: Plato Install and Run
+
+on:
+  push:
+    branches:
+      - f24
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - run: cp install/package.json package.json
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: NPM Install
+        uses: bahmutov/npm-install@v1
+        with:
+          useLockFile: false
+
+      - name: Install Plato
+        run: npm install -g plato@latest
+
+      - name: Run Plato
+        run: rm -rf plato-report && plato -r -d plato-report **/*.js
+

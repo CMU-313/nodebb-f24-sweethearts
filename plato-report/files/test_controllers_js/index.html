@@ -1,0 +1,1989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - test/controllers.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>test/controllers.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">66.00</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">1872</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">79.81</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">31.52</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+const assert = require(&#039;assert&#039;);
+const nconf = require(&#039;nconf&#039;);
+const fs = require(&#039;fs&#039;);
+const path = require(&#039;path&#039;);
+const util = require(&#039;util&#039;);
+
+const request = require(&#039;../src/request&#039;);
+const db = require(&#039;./mocks/databasemock&#039;);
+const api = require(&#039;../src/api&#039;);
+const categories = require(&#039;../src/categories&#039;);
+const topics = require(&#039;../src/topics&#039;);
+const posts = require(&#039;../src/posts&#039;);
+const user = require(&#039;../src/user&#039;);
+const groups = require(&#039;../src/groups&#039;);
+const meta = require(&#039;../src/meta&#039;);
+const translator = require(&#039;../src/translator&#039;);
+const privileges = require(&#039;../src/privileges&#039;);
+const plugins = require(&#039;../src/plugins&#039;);
+const utils = require(&#039;../src/utils&#039;);
+const slugify = require(&#039;../src/slugify&#039;);
+const helpers = require(&#039;./helpers&#039;);
+
+const sleep = util.promisify(setTimeout);
+
+describe(&#039;Controllers&#039;, () =&gt; {
+	let tid;
+	let cid;
+	let pid;
+	let fooUid;
+	let adminUid;
+	let category;
+	let testRoutes = [];
+
+	before(async () =&gt; {
+		category = await categories.create({
+			name: &#039;Test Category&#039;,
+			description: &#039;Test category created by testing script&#039;,
+		});
+		cid = category.cid;
+
+		fooUid = await user.create({ username: &#039;foo&#039;, password: &#039;barbar&#039;, gdpr_consent: true });
+		await user.setUserField(fooUid, &#039;email&#039;, &#039;foo@test.com&#039;);
+		await user.email.confirmByUid(fooUid);
+
+		adminUid = await user.create({ username: &#039;admin&#039;, password: &#039;barbar&#039;, gdpr_consent: true });
+		await groups.join(&#039;administrators&#039;, adminUid);
+
+		const navigation = require(&#039;../src/navigation/admin&#039;);
+		const data = require(&#039;../install/data/navigation.json&#039;);
+
+		await navigation.save(data);
+
+		const result = await topics.post({ uid: fooUid, title: &#039;test topic title&#039;, content: &#039;test topic content&#039;, cid: cid });
+		tid = result.topicData.tid;
+
+		pid = result.postData.pid;
+
+		testRoutes = [
+			{ it: &#039;should load /reset without code&#039;, url: &#039;/reset&#039; },
+			{ it: &#039;should load /reset with invalid code&#039;, url: &#039;/reset/123123&#039; },
+			{ it: &#039;should load /login&#039;, url: &#039;/login&#039; },
+			{ it: &#039;should load /register&#039;, url: &#039;/register&#039; },
+			{ it: &#039;should load /robots.txt&#039;, url: &#039;/robots.txt&#039; },
+			{ it: &#039;should load /manifest.webmanifest&#039;, url: &#039;/manifest.webmanifest&#039; },
+			{ it: &#039;should load /outgoing?url=&lt;url&gt;&#039;, url: &#039;/outgoing?url=http://youtube.com&#039; },
+			{ it: &#039;should 404 on /outgoing with no url&#039;, url: &#039;/outgoing&#039;, status: 404 },
+			{ it: &#039;should 404 on /outgoing with javascript: protocol&#039;, url: &#039;/outgoing?url=javascript:alert(1);&#039;, status: 404 },
+			{ it: &#039;should 404 on /outgoing with invalid url&#039;, url: &#039;/outgoing?url=derp&#039;, status: 404 },
+			{ it: &#039;should load /sping&#039;, url: &#039;/sping&#039;, body: &#039;healthy&#039; },
+			{ it: &#039;should load /ping&#039;, url: &#039;/ping&#039;, body: &#039;200&#039; },
+			{ it: &#039;should handle 404&#039;, url: &#039;/arouteinthevoid&#039;, status: 404 },
+			{ it: &#039;should load topic rss feed&#039;, url: `/topic/${tid}.rss` },
+			{ it: &#039;should load category rss feed&#039;, url: `/category/${cid}.rss` },
+			{ it: &#039;should load topics rss feed&#039;, url: `/topics.rss` },
+			{ it: &#039;should load recent rss feed&#039;, url: `/recent.rss` },
+			{ it: &#039;should load top rss feed&#039;, url: `/top.rss` },
+			{ it: &#039;should load popular rss feed&#039;, url: `/popular.rss` },
+			{ it: &#039;should load popular rss feed with term&#039;, url: `/popular/day.rss` },
+			{ it: &#039;should load recent posts rss feed&#039;, url: `/recentposts.rss` },
+			{ it: &#039;should load category recent posts rss feed&#039;, url: `/category/${cid}/recentposts.rss` },
+			{ it: &#039;should load user topics rss feed&#039;, url: `/user/foo/topics.rss` },
+			{ it: &#039;should load tag rss feed&#039;, url: `/tags/nodebb.rss` },
+			{ it: &#039;should load client.css&#039;, url: `/assets/client.css` },
+			{ it: &#039;should load admin.css&#039;, url: `/assets/admin.css` },
+			{ it: &#039;should load sitemap.xml&#039;, url: `/sitemap.xml` },
+			{ it: &#039;should load sitemap/pages.xml&#039;, url: `/sitemap/pages.xml` },
+			{ it: &#039;should load sitemap/categories.xml&#039;, url: `/sitemap/categories.xml` },
+			{ it: &#039;should load sitemap/topics.1.xml&#039;, url: `/sitemap/topics.1.xml` },
+			{ it: &#039;should load theme screenshot&#039;, url: `/css/previews/nodebb-theme-harmony` },
+			{ it: &#039;should load users page&#039;, url: `/users` },
+			{ it: &#039;should load users page section&#039;, url: `/users?section=online` },
+			{ it: &#039;should load groups page&#039;, url: `/groups` },
+			{ it: &#039;should get recent posts&#039;, url: `/api/recent/posts/month` },
+			{ it: &#039;should get post data&#039;, url: `/api/v3/posts/${pid}` },
+			{ it: &#039;should get topic data&#039;, url: `/api/v3/topics/${tid}` },
+			{ it: &#039;should get category data&#039;, url: `/api/v3/categories/${cid}` },
+			{ it: &#039;should return osd data&#039;, url: `/osd.xml` },
+		];
+	});
+
+	it(&#039;should load /config with csrf_token&#039;, async () =&gt; {
+		const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/config`);
+		assert.equal(response.statusCode, 200);
+		assert(body.csrf_token);
+	});
+
+	it(&#039;should load /config with no csrf_token as spider&#039;, async () =&gt; {
+		const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/config`, {
+			headers: {
+				&#039;user-agent&#039;: &#039;yandex&#039;,
+			},
+		});
+		assert.equal(response.statusCode, 200);
+		assert.strictEqual(body.csrf_token, false);
+		assert.strictEqual(body.uid, -1);
+		assert.strictEqual(body.loggedIn, false);
+	});
+
+	describe(&#039;homepage&#039;, () =&gt; {
+		function hookMethod(hookData) {
+			assert(hookData.req);
+			assert(hookData.res);
+			assert(hookData.next);
+
+			hookData.res.render(&#039;mycustompage&#039;, {
+				works: true,
+			});
+		}
+		const message = utils.generateUUID();
+		const name = &#039;mycustompage.tpl&#039;;
+		const tplPath = path.join(nconf.get(&#039;views_dir&#039;), name);
+
+		before(async () =&gt; {
+			plugins.hooks.register(&#039;myTestPlugin&#039;, {
+				hook: &#039;action:homepage.get:mycustompage&#039;,
+				method: hookMethod,
+			});
+
+			fs.writeFileSync(tplPath, message);
+			await meta.templates.compileTemplate(name, message);
+		});
+
+		async function assertHomeUrl() {
+			const { response, body } = await request.get(nconf.get(&#039;url&#039;));
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		}
+
+		it(&#039;should load default&#039;, async () =&gt; {
+			await assertHomeUrl();
+		});
+
+		it(&#039;should load unread&#039;, async () =&gt; {
+			await meta.configs.set(&#039;homePageRoute&#039;, &#039;unread&#039;);
+			await assertHomeUrl();
+		});
+
+		it(&#039;should load recent&#039;, async () =&gt; {
+			await meta.configs.set(&#039;homePageRoute&#039;, &#039;recent&#039;);
+			await assertHomeUrl();
+		});
+
+		it(&#039;should load top&#039;, async () =&gt; {
+			await meta.configs.set(&#039;homePageRoute&#039;, &#039;top&#039;);
+			await assertHomeUrl();
+		});
+
+		it(&#039;should load popular&#039;, async () =&gt; {
+			await meta.configs.set(&#039;homePageRoute&#039;, &#039;popular&#039;);
+			await assertHomeUrl();
+		});
+
+		it(&#039;should load category&#039;, async () =&gt; {
+			await meta.configs.set(&#039;homePageRoute&#039;, &#039;category/1/test-category&#039;);
+			await assertHomeUrl();
+		});
+
+		it(&#039;should not load breadcrumbs on home page route&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+			assert(!body.breadcrumbs);
+		});
+
+		it(&#039;should redirect to custom&#039;, async () =&gt; {
+			await meta.configs.set(&#039;homePageRoute&#039;, &#039;groups&#039;);
+			await assertHomeUrl();
+		});
+
+		it(&#039;should 404 if custom does not exist&#039;, async () =&gt; {
+			await meta.configs.set(&#039;homePageRoute&#039;, &#039;this-route-does-not-exist&#039;);
+			const { response, body } = await request.get(nconf.get(&#039;url&#039;));
+			assert.equal(response.statusCode, 404);
+			assert(body);
+		});
+
+		it(&#039;api should work with hook&#039;, async () =&gt; {
+			await meta.configs.set(&#039;homePageRoute&#039;, &#039;mycustompage&#039;);
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api`);
+			assert.equal(response.statusCode, 200);
+			assert.equal(body.works, true);
+			assert.equal(body.template.mycustompage, true);
+		});
+
+		it(&#039;should render with hook&#039;, async () =&gt; {
+			await meta.configs.set(&#039;homePageRoute&#039;, &#039;mycustompage&#039;);
+			const { response, body } = await request.get(nconf.get(&#039;url&#039;));
+			assert.equal(response.statusCode, 200);
+			assert.ok(body);
+			assert.ok(body.indexOf(&#039;&lt;main id=&quot;panel&quot;&#039;));
+			assert.ok(body.includes(message));
+		});
+
+		after(() =&gt; {
+			plugins.hooks.unregister(&#039;myTestPlugin&#039;, &#039;action:homepage.get:custom&#039;, hookMethod);
+			fs.unlinkSync(tplPath);
+			fs.unlinkSync(tplPath.replace(/\.tpl$/, &#039;.js&#039;));
+		});
+	});
+
+	describe(&#039;routes that should 200/404 etc.&#039;, () =&gt; {
+		const baseUrl = nconf.get(&#039;url&#039;);
+		testRoutes.forEach((route) =&gt; {
+			it(route.it, async () =&gt; {
+				const { response, body } = await request.get(`${baseUrl}/${route.url}`);
+				assert.equal(response.statusCode, route.status || 200);
+				if (route.body) {
+					assert.strictEqual(String(body), route.body);
+				} else {
+					assert(body);
+				}
+			});
+		});
+	});
+
+	it(&#039;should load /register/complete&#039;, async () =&gt; {
+		const jar = request.jar();
+		const csrf_token = await helpers.getCsrfToken(jar);
+		const { response, body } = await request.post(`${nconf.get(&#039;url&#039;)}/register`, {
+			body: {
+				username: &#039;interstitial&#039;,
+				password: &#039;123456&#039;,
+				&#039;password-confirm&#039;: &#039;123456&#039;,
+				email: &#039;test@me.com&#039;,
+			},
+			jar,
+			headers: {
+				&#039;x-csrf-token&#039;: csrf_token,
+			},
+		});
+		assert.equal(response.statusCode, 200);
+		assert.strictEqual(body.next, `${nconf.get(&#039;relative_path&#039;)}/register/complete`);
+
+		const { response: res2, body: body2 } = await request.get(`${nconf.get(&#039;url&#039;)}/api/register/complete`, {
+			jar: jar,
+			json: true,
+		});
+		assert.equal(res2.statusCode, 200);
+		assert(body2.sections);
+		assert(body2.errors);
+		assert(body2.title);
+	});
+
+	describe(&#039;registration interstitials&#039;, () =&gt; {
+		describe(&#039;email update&#039;, () =&gt; {
+			let jar;
+			let token;
+			const dummyEmailerHook = async (data) =&gt; {};
+
+			before(async () =&gt; {
+				// Attach an emailer hook so related requests do not error
+				plugins.hooks.register(&#039;emailer-test&#039;, {
+					hook: &#039;static:email.send&#039;,
+					method: dummyEmailerHook,
+				});
+
+				jar = (await helpers.registerUser({
+					username: utils.generateUUID().slice(0, 10),
+					password: utils.generateUUID(),
+				})).jar;
+				token = await helpers.getCsrfToken(jar);
+
+				meta.config.requireEmailAddress = 1;
+			});
+
+			after(() =&gt; {
+				meta.config.requireEmailAddress = 0;
+				plugins.hooks.unregister(&#039;emailer-test&#039;, &#039;static:email.send&#039;);
+			});
+
+			it(&#039;email interstitial should still apply if empty email entered and requireEmailAddress is enabled&#039;, async () =&gt; {
+				const { response: res } = await request.post(`${nconf.get(&#039;url&#039;)}/register/complete`, {
+					jar,
+					maxRedirect: 0,
+					redirect: &#039;manual&#039;,
+					headers: {
+						&#039;x-csrf-token&#039;: token,
+					},
+					body: {
+						email: &#039;&#039;,
+					},
+				});
+
+				assert.strictEqual(res.headers.location, `${nconf.get(&#039;relative_path&#039;)}/register/complete`);
+
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/register/complete`, {
+					jar,
+				});
+				assert.strictEqual(response.statusCode, 200);
+				assert(body.errors.length);
+				assert(body.errors.includes(&#039;[[error:invalid-email]]&#039;));
+			});
+
+			it(&#039;gdpr interstitial should still apply if email requirement is disabled&#039;, async () =&gt; {
+				meta.config.requireEmailAddress = 0;
+
+				const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/register/complete`, {
+					jar,
+				});
+
+				assert(!body.errors.includes(&#039;[[error:invalid-email]]&#039;));
+				assert(!body.errors.includes(&#039;[[error:gdpr-consent-denied]]&#039;));
+
+				meta.config.requireEmailAddress = 1;
+			});
+
+			it(&#039;should error if userData is falsy&#039;, async () =&gt; {
+				try {
+					await user.interstitials.email({ userData: null });
+					assert(false);
+				} catch (err) {
+					assert.strictEqual(err.message, &#039;[[error:invalid-data]]&#039;);
+				}
+			});
+
+			it(&#039;should throw error if email is not valid&#039;, async () =&gt; {
+				const uid = await user.create({ username: &#039;interstiuser1&#039; });
+				const result = await user.interstitials.email({
+					userData: { uid: uid, updateEmail: true },
+					req: { uid: uid },
+					interstitials: [],
+				});
+				assert.strictEqual(result.interstitials[0].template, &#039;partials/email_update&#039;);
+				await assert.rejects(result.interstitials[0].callback({ uid }, {
+					email: &#039;invalidEmail&#039;,
+				}), { message: &#039;[[error:invalid-email]]&#039; });
+			});
+
+			it(&#039;should reject an email that comprises only whitespace&#039;, async () =&gt; {
+				const uid = await user.create({ username: utils.generateUUID().slice(0, 10) });
+				const result = await user.interstitials.email({
+					userData: { uid: uid, updateEmail: true },
+					req: { uid: uid },
+					interstitials: [],
+				});
+				assert.strictEqual(result.interstitials[0].template, &#039;partials/email_update&#039;);
+				await assert.rejects(result.interstitials[0].callback({ uid }, {
+					email: &#039;    &#039;,
+				}), { message: &#039;[[error:invalid-email]]&#039; });
+			});
+
+			it(&#039;should set req.session.emailChanged to 1&#039;, async () =&gt; {
+				const uid = await user.create({ username: &#039;interstiuser2&#039; });
+				const result = await user.interstitials.email({
+					userData: { uid: uid, updateEmail: true },
+					req: { uid: uid, session: {} },
+					interstitials: [],
+				});
+
+				await result.interstitials[0].callback({ uid: uid }, {
+					email: &#039;interstiuser2@nodebb.org&#039;,
+				});
+				assert.strictEqual(result.req.session.emailChanged, 1);
+			});
+
+			it(&#039;should throw error if user tries to edit other users email&#039;, async () =&gt; {
+				const uid = await user.create({ username: &#039;interstiuser4&#039; });
+				try {
+					const result = await user.interstitials.email({
+						userData: { uid: uid, updateEmail: true },
+						req: { uid: 1000 },
+						interstitials: [],
+					});
+
+					await result.interstitials[0].callback({ uid: uid }, {
+						email: &#039;derp@derp.com&#039;,
+					});
+					assert(false);
+				} catch (err) {
+					assert.strictEqual(err.message, &#039;[[error:no-privileges]]&#039;);
+				}
+			});
+
+			it(&#039;should remove current email (only allowed if email not required)&#039;, async () =&gt; {
+				meta.config.requireEmailAddress = 0;
+
+				const uid = await user.create({ username: &#039;interstiuser5&#039; });
+				await user.setUserField(uid, &#039;email&#039;, &#039;interstiuser5@nodebb.org&#039;);
+				await user.email.confirmByUid(uid);
+
+				const result = await user.interstitials.email({
+					userData: { uid: uid, updateEmail: true },
+					req: { uid: uid, session: { id: 0 } },
+					interstitials: [],
+				});
+
+				await result.interstitials[0].callback({ uid: uid }, {
+					email: &#039;&#039;,
+				});
+				const userData = await user.getUserData(uid);
+				assert.strictEqual(userData.email, &#039;&#039;);
+				assert.strictEqual(userData[&#039;email:confirmed&#039;], 0);
+
+				meta.config.requireEmailAddress = 1;
+			});
+
+			it(&#039;should require a password (if one is set) for email change&#039;, async () =&gt; {
+				try {
+					const [username, password] = [utils.generateUUID().slice(0, 10), utils.generateUUID()];
+					const uid = await user.create({ username, password });
+					await user.setUserField(uid, &#039;email&#039;, `${username}@nodebb.org`);
+					await user.email.confirmByUid(uid);
+
+					const result = await user.interstitials.email({
+						userData: { uid: uid, updateEmail: true },
+						req: { uid: uid, session: { id: 0 } },
+						interstitials: [],
+					});
+
+					await result.interstitials[0].callback({ uid: uid }, {
+						email: `${username}@nodebb.com`,
+					});
+				} catch (err) {
+					assert.strictEqual(err.message, &#039;[[error:invalid-password]]&#039;);
+				}
+			});
+
+			it(&#039;should require a password (if one is set) for email clearing&#039;, async () =&gt; {
+				meta.config.requireEmailAddress = 0;
+
+				try {
+					const [username, password] = [utils.generateUUID().slice(0, 10), utils.generateUUID()];
+					const uid = await user.create({ username, password });
+					await user.setUserField(uid, &#039;email&#039;, `${username}@nodebb.org`);
+					await user.email.confirmByUid(uid);
+
+					const result = await user.interstitials.email({
+						userData: { uid: uid, updateEmail: true },
+						req: { uid: uid, session: { id: 0 } },
+						interstitials: [],
+					});
+
+					await result.interstitials[0].callback({ uid: uid }, {
+						email: &#039;&#039;,
+					});
+				} catch (err) {
+					assert.strictEqual(err.message, &#039;[[error:invalid-password]]&#039;);
+				}
+
+				meta.config.requireEmailAddress = 1;
+			});
+
+			it(&#039;should successfully issue validation request if the correct password is passed in&#039;, async () =&gt; {
+				const [username, password] = [utils.generateUUID().slice(0, 10), utils.generateUUID()];
+				const uid = await user.create({ username, password });
+				await user.setUserField(uid, &#039;email&#039;, `${username}@nodebb.org`);
+				await user.email.confirmByUid(uid);
+
+				const result = await user.interstitials.email({
+					userData: { uid: uid, updateEmail: true },
+					req: { uid: uid, session: { id: 0 } },
+					interstitials: [],
+				});
+
+				await result.interstitials[0].callback({ uid }, {
+					email: `${username}@nodebb.com`,
+					password,
+				});
+
+				const pending = await user.email.isValidationPending(uid, `${username}@nodebb.com`);
+				assert.strictEqual(pending, true);
+				await user.setUserField(uid, &#039;email&#039;, `${username}@nodebb.com`);
+				await user.email.confirmByUid(uid);
+				const userData = await user.getUserData(uid);
+				assert.strictEqual(userData.email, `${username}@nodebb.com`);
+				assert.strictEqual(userData[&#039;email:confirmed&#039;], 1);
+			});
+
+			describe(&#039;blocking access for unconfirmed emails&#039;, () =&gt; {
+				let jar;
+				let token;
+				const username = utils.generateUUID().slice(0, 10);
+
+				before(async () =&gt; {
+					jar = (await helpers.registerUser({
+						username,
+						password: utils.generateUUID(),
+					})).jar;
+					token = await helpers.getCsrfToken(jar);
+				});
+
+				async function abortInterstitial() {
+					await request.post(`${nconf.get(&#039;url&#039;)}/register/abort`, {
+						jar,
+						headers: {
+							&#039;x-csrf-token&#039;: token,
+						},
+					});
+				}
+
+				it(&#039;should not apply if requireEmailAddress is not enabled&#039;, async () =&gt; {
+					meta.config.requireEmailAddress = 0;
+
+					const { response } = await request.post(`${nconf.get(&#039;url&#039;)}/register/complete`, {
+						jar,
+						maxRedirect: 0,
+						redirect: &#039;manual&#039;,
+						headers: {
+							&#039;x-csrf-token&#039;: token,
+						},
+						body: {
+							email: `${utils.generateUUID().slice(0, 10)}@example.org`,
+							gdpr_agree_data: &#039;on&#039;,
+							gdpr_agree_email: &#039;on&#039;,
+						},
+					});
+
+
+					assert.strictEqual(response.headers.location, `${nconf.get(&#039;relative_path&#039;)}/`);
+					meta.config.requireEmailAddress = 1;
+				});
+
+				it(&#039;should allow access to regular resources after an email is entered, even if unconfirmed&#039;, async () =&gt; {
+					const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/recent`, {
+						jar,
+						maxRedirect: 0,
+					});
+
+					assert.strictEqual(response.statusCode, 200);
+				});
+
+				it(&#039;should redirect back to interstitial for categories requiring validated email&#039;, async () =&gt; {
+					const name = utils.generateUUID();
+					const { cid } = await categories.create({ name });
+					await privileges.categories.rescind([&#039;groups:read&#039;], cid, [&#039;registered-users&#039;]);
+					await privileges.categories.give([&#039;groups:read&#039;], cid, [&#039;verified-users&#039;]);
+					const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/category/${cid}/${slugify(name)}`, {
+						jar,
+						maxRedirect: 0,
+						redirect: &#039;manual&#039;,
+					});
+
+					assert.strictEqual(response.statusCode, 307);
+					assert.strictEqual(response.headers.location, `${nconf.get(&#039;relative_path&#039;)}/register/complete`);
+					await abortInterstitial();
+				});
+
+				it(&#039;should redirect back to interstitial for topics requiring validated email&#039;, async () =&gt; {
+					const name = utils.generateUUID();
+					const { cid } = await categories.create({ name });
+					await privileges.categories.rescind([&#039;groups:topics:read&#039;], cid, &#039;registered-users&#039;);
+					await privileges.categories.give([&#039;groups:topics:read&#039;], cid, &#039;verified-users&#039;);
+					const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/category/${cid}/${slugify(name)}`, {
+						jar,
+						maxRedirect: 0,
+						redirect: &#039;manual&#039;,
+					});
+
+					assert.strictEqual(response.statusCode, 200);
+
+					const title = utils.generateUUID();
+					const uid = await user.getUidByUsername(username);
+					const { topicData } = await topics.post({ uid, cid, title, content: utils.generateUUID() });
+					const { response: res2 } = await request.get(`${nconf.get(&#039;url&#039;)}/topic/${topicData.tid}/${slugify(title)}`, {
+						jar,
+						maxRedirect: 0,
+						redirect: &#039;manual&#039;,
+					});
+					assert.strictEqual(res2.statusCode, 307);
+					assert.strictEqual(res2.headers.location, `${nconf.get(&#039;relative_path&#039;)}/register/complete`);
+					await abortInterstitial();
+					await topics.purge(topicData.tid, uid);
+				});
+			});
+		});
+
+		describe(&#039;gdpr&#039;, () =&gt; {
+			let jar;
+			let token;
+
+			before(async () =&gt; {
+				jar = (await helpers.registerUser({
+					username: utils.generateUUID().slice(0, 10),
+					password: utils.generateUUID(),
+				})).jar;
+				token = await helpers.getCsrfToken(jar);
+			});
+
+			it(&#039;registration should succeed once gdpr prompts are agreed to&#039;, async () =&gt; {
+				const { response } = await request.post(`${nconf.get(&#039;url&#039;)}/register/complete`, {
+					jar,
+					maxRedirect: 0,
+					redirect: &#039;manual&#039;,
+					headers: {
+						&#039;x-csrf-token&#039;: token,
+					},
+					body: {
+						gdpr_agree_data: &#039;on&#039;,
+						gdpr_agree_email: &#039;on&#039;,
+					},
+				});
+
+				assert.strictEqual(response.statusCode, 302);
+				assert.strictEqual(response.headers.location, `${nconf.get(&#039;relative_path&#039;)}/`);
+			});
+		});
+
+		describe(&#039;abort behaviour&#039;, () =&gt; {
+			let jar;
+			let token;
+
+			beforeEach(async () =&gt; {
+				jar = (await helpers.registerUser({
+					username: utils.generateUUID().slice(0, 10),
+					password: utils.generateUUID(),
+				})).jar;
+				token = await helpers.getCsrfToken(jar);
+			});
+
+			it(&#039;should terminate the session and send user back to index if interstitials remain&#039;, async () =&gt; {
+				const { response } = await request.post(`${nconf.get(&#039;url&#039;)}/register/abort`, {
+					jar,
+					maxRedirect: 0,
+					redirect: &#039;manual&#039;,
+					headers: {
+						&#039;x-csrf-token&#039;: token,
+					},
+				});
+
+				assert.strictEqual(response.statusCode, 302);
+				assert.strictEqual(response.headers[&#039;set-cookie&#039;], `express.sid=; Path=${nconf.get(&#039;relative_path&#039;) || &#039;/&#039;}; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`);
+				assert.strictEqual(response.headers.location, `${nconf.get(&#039;relative_path&#039;)}/`);
+			});
+
+			it(&#039;should preserve the session and send user back to user profile if no interstitials remain (e.g. GDPR OK + email change cancellation)&#039;, async () =&gt; {
+				// Submit GDPR consent
+				await request.post(`${nconf.get(&#039;url&#039;)}/register/complete`, {
+					jar,
+					maxRedirect: 0,
+					redirect: &#039;manual&#039;,
+					headers: {
+						&#039;x-csrf-token&#039;: token,
+					},
+					body: {
+						gdpr_agree_data: &#039;on&#039;,
+						gdpr_agree_email: &#039;on&#039;,
+					},
+				});
+
+				// Start email change flow
+				await request.get(`${nconf.get(&#039;url&#039;)}/me/edit/email`, { jar });
+
+				const { response } = await request.post(`${nconf.get(&#039;url&#039;)}/register/abort`, {
+					jar,
+					maxRedirect: 0,
+					redirect: &#039;manual&#039;,
+					headers: {
+						&#039;x-csrf-token&#039;: token,
+					},
+				});
+
+				assert.strictEqual(response.statusCode, 302);
+				assert(response.headers.location.match(/\/uid\/\d+$/));
+			});
+		});
+	});
+
+
+	it(&#039;should load /tos&#039;, async () =&gt; {
+		meta.config.termsOfUse = &#039;please accept our tos&#039;;
+		const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/tos`);
+		assert.equal(response.statusCode, 200);
+		assert(body);
+	});
+
+
+	it(&#039;should return 404 if meta.config.termsOfUse is empty&#039;, async () =&gt; {
+		meta.config.termsOfUse = &#039;&#039;;
+		const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/tos`);
+		assert.equal(response.statusCode, 404);
+		assert(body);
+	});
+
+
+	it(&#039;should error if guests do not have search privilege&#039;, async () =&gt; {
+		const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/users?query=bar&amp;section=sort-posts`);
+		assert.equal(response.statusCode, 500);
+		assert(body);
+		assert.equal(body.error, &#039;[[error:no-privileges]]&#039;);
+	});
+
+	it(&#039;should load users search page&#039;, async () =&gt; {
+		await privileges.global.give([&#039;groups:search:users&#039;], &#039;guests&#039;);
+		const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/users?query=bar&amp;section=sort-posts`);
+		assert.equal(response.statusCode, 200);
+		assert(body);
+		await privileges.global.rescind([&#039;groups:search:users&#039;], &#039;guests&#039;);
+	});
+
+	it(&#039;should load group details page&#039;, async () =&gt; {
+		await groups.create({
+			name: &#039;group-details&#039;,
+			description: &#039;Foobar!&#039;,
+			hidden: 0,
+		});
+		await groups.join(&#039;group-details&#039;, fooUid);
+
+		await topics.post({
+			uid: fooUid,
+			title: &#039;topic title&#039;,
+			content: &#039;test topic content&#039;,
+			cid: cid,
+		});
+
+		const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/groups/group-details`);
+		assert.equal(response.statusCode, 200);
+		assert(body);
+		assert.equal(body.posts[0].content, &#039;test topic content&#039;);
+	});
+
+	it(&#039;should load group members page&#039;, async () =&gt; {
+		const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/groups/group-details/members`);
+		assert.equal(response.statusCode, 200);
+		assert(body);
+	});
+
+	it(&#039;should 404 when trying to load group members of hidden group&#039;, async () =&gt; {
+		const groups = require(&#039;../src/groups&#039;);
+		await groups.create({
+			name: &#039;hidden-group&#039;,
+			description: &#039;Foobar!&#039;,
+			hidden: 1,
+		});
+		const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/groups/hidden-group/members`);
+		assert.equal(response.statusCode, 404);
+	});
+
+
+
+	describe(&#039;revoke session&#039;, () =&gt; {
+		let uid;
+		let jar;
+		let csrf_token;
+
+		before(async () =&gt; {
+			uid = await user.create({ username: &#039;revokeme&#039;, password: &#039;barbar&#039; });
+			const login = await helpers.loginUser(&#039;revokeme&#039;, &#039;barbar&#039;);
+			jar = login.jar;
+			csrf_token = login.csrf_token;
+		});
+
+		it(&#039;should fail to revoke session with missing uuid&#039;, async () =&gt; {
+			const { response } = await request.del(`${nconf.get(&#039;url&#039;)}/api/user/revokeme/session`, {
+				jar: jar,
+				headers: {
+					&#039;x-csrf-token&#039;: csrf_token,
+				},
+			});
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should fail if user doesn\&#039;t exist&#039;, async () =&gt; {
+			const { response, body } = await request.del(`${nconf.get(&#039;url&#039;)}/api/v3/users/doesnotexist/sessions/1112233`, {
+				jar: jar,
+				headers: {
+					&#039;x-csrf-token&#039;: csrf_token,
+				},
+			});
+
+			assert.strictEqual(response.statusCode, 404);
+			// const parsedResponse = JSON.parse(body);
+			assert.deepStrictEqual(body.response, {});
+			assert.deepStrictEqual(body.status, {
+				code: &#039;not-found&#039;,
+				message: &#039;User does not exist&#039;,
+			});
+		});
+
+		it(&#039;should revoke user session&#039;, async () =&gt; {
+			const sids = await db.getSortedSetRange(`uid:${uid}:sessions`, 0, -1);
+			const sid = sids[0];
+			const sessionObj = await db.sessionStoreGet(sid);
+
+			const { response, body } = await request.del(`${nconf.get(&#039;url&#039;)}/api/v3/users/${uid}/sessions/${sessionObj.meta.uuid}`, {
+				jar: jar,
+				headers: {
+					&#039;x-csrf-token&#039;: csrf_token,
+				},
+			});
+
+			assert.strictEqual(response.statusCode, 200);
+			assert.deepStrictEqual(body, {
+				status: {
+					code: &#039;ok&#039;,
+					message: &#039;OK&#039;,
+				},
+				response: {},
+			});
+		});
+	});
+
+	describe(&#039;widgets&#039;, () =&gt; {
+		const widgets = require(&#039;../src/widgets&#039;);
+
+		before(async () =&gt; {
+			await widgets.reset();
+			const data = {
+				template: &#039;categories.tpl&#039;,
+				location: &#039;sidebar&#039;,
+				widgets: [
+					{
+						widget: &#039;html&#039;,
+						data: {
+							html: &#039;test&#039;,
+							title: &#039;&#039;,
+							container: &#039;&#039;,
+						},
+					},
+				],
+			};
+
+			await widgets.setArea(data);
+		});
+
+		it(&#039;should return {} if there are no widgets&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${cid}`);
+			assert.equal(response.statusCode, 200);
+			assert(body.widgets);
+			assert.equal(Object.keys(body.widgets).length, 0);
+		});
+
+		it(&#039;should render templates&#039;, async () =&gt; {
+			const url = `${nconf.get(&#039;url&#039;)}/api/categories`;
+			const { response, body } = await request.get(url);
+			assert.equal(response.statusCode, 200);
+			assert(body.widgets);
+			assert(body.widgets.sidebar);
+			assert.equal(body.widgets.sidebar[0].html, &#039;test&#039;);
+		});
+
+		it(&#039;should reset templates&#039;, async () =&gt; {
+			await widgets.resetTemplates([&#039;categories&#039;, &#039;category&#039;]);
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/categories`);
+			assert.equal(response.statusCode, 200);
+			assert(body.widgets);
+			assert.equal(Object.keys(body.widgets).length, 0);
+		});
+	});
+
+	describe(&#039;tags&#039;, () =&gt; {
+		before(async () =&gt; {
+			await topics.post({
+				uid: fooUid,
+				title: &#039;topic title&#039;,
+				content: &#039;test topic content&#039;,
+				cid: cid,
+				tags: [&#039;nodebb&#039;, &#039;bug&#039;, &#039;test&#039;],
+			});
+		});
+
+		it(&#039;should render tags page&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/tags`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+			assert(Array.isArray(body.tags));
+		});
+
+		it(&#039;should render tag page with no topics&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/tags/notag`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+			assert(Array.isArray(body.topics));
+			assert.equal(body.topics.length, 0);
+		});
+
+		it(&#039;should render tag page with 1 topic&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/tags/nodebb`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+			assert(Array.isArray(body.topics));
+			assert.equal(body.topics.length, 1);
+		});
+	});
+
+
+	describe(&#039;maintenance mode&#039;, () =&gt; {
+		before((done) =&gt; {
+			meta.config.maintenanceMode = 1;
+			done();
+		});
+		after((done) =&gt; {
+			meta.config.maintenanceMode = 0;
+			done();
+		});
+
+		it(&#039;should return 503 in maintenance mode&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/recent`);
+			assert.equal(response.statusCode, 503);
+		});
+
+		it(&#039;should return 503 in maintenance mode&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/recent`);
+			assert.equal(response.statusCode, 503);
+			assert(body);
+		});
+
+		it(&#039;should return 200 in maintenance mode&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/login`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should return 200 if guests are allowed&#039;, async () =&gt; {
+			const oldValue = meta.config.groupsExemptFromMaintenanceMode;
+			meta.config.groupsExemptFromMaintenanceMode.push(&#039;guests&#039;);
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/recent`);
+			assert.strictEqual(response.statusCode, 200);
+			assert(body);
+			meta.config.groupsExemptFromMaintenanceMode = oldValue;
+		});
+	});
+
+	describe(&#039;account pages&#039;, () =&gt; {
+		let jar;
+		let csrf_token;
+
+		before(async () =&gt; {
+			({ jar, csrf_token } = await helpers.loginUser(&#039;foo&#039;, &#039;barbar&#039;));
+		});
+
+		it(&#039;should redirect to account page with logged in user&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/login`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert.equal(response.headers[&#039;x-redirect&#039;], &#039;/user/foo&#039;);
+			assert.equal(body, &#039;/user/foo&#039;);
+		});
+
+		it(&#039;should 404 if uid is not a number&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/uid/test`, { jar });
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should redirect to userslug&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/uid/${fooUid}`);
+			assert.equal(response.statusCode, 200);
+			assert.equal(response.headers[&#039;x-redirect&#039;], &#039;/user/foo&#039;);
+			assert.equal(body, &#039;/user/foo&#039;);
+		});
+
+		it(&#039;should redirect to userslug and keep query params&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/uid/${fooUid}/topics?foo=bar`);
+			assert.equal(response.statusCode, 200);
+			assert.equal(response.headers[&#039;x-redirect&#039;], &#039;/user/foo/topics?foo=bar&#039;);
+			assert.equal(body, &#039;/user/foo/topics?foo=bar&#039;);
+		});
+
+		it(&#039;should 404 if user does not exist&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/uid/123123`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		describe(&#039;/me/*&#039;, () =&gt; {
+			it(&#039;should redirect to user profile&#039;, async () =&gt; {
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/me`, { jar });
+				assert.equal(response.statusCode, 200);
+				assert(body.includes(&#039;&quot;template&quot;:{&quot;name&quot;:&quot;account/profile&quot;,&quot;account/profile&quot;:true}&#039;));
+				assert(body.includes(&#039;&quot;username&quot;:&quot;foo&quot;&#039;));
+			});
+
+			it(&#039;api should redirect to /user/[userslug]/bookmarks&#039;, async () =&gt; {
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/me/bookmarks`, { jar });
+				assert.equal(response.statusCode, 200);
+				assert.equal(response.headers[&#039;x-redirect&#039;], &#039;/user/foo/bookmarks&#039;);
+				assert.equal(body, &#039;/user/foo/bookmarks&#039;);
+			});
+
+			it(&#039;api should redirect to /user/[userslug]/edit/username&#039;, async () =&gt; {
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/me/edit/username`, { jar });
+				assert.equal(response.statusCode, 200);
+				assert.equal(response.headers[&#039;x-redirect&#039;], &#039;/user/foo/edit/username&#039;);
+				assert.equal(body, &#039;/user/foo/edit/username&#039;);
+			});
+
+			it(&#039;should redirect to login if user is not logged in&#039;, async () =&gt; {
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/me/bookmarks`);
+				assert.equal(response.statusCode, 200);
+				assert(body.includes(&#039;Login to your account&#039;), body.slice(0, 500));
+			});
+		});
+
+		it(&#039;should 401 if user is not logged in&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/admin`);
+			assert.equal(response.statusCode, 401);
+		});
+
+		it(&#039;should 403 if user is not admin&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/admin`, { jar });
+			assert.equal(response.statusCode, 403);
+		});
+
+		it(&#039;should load /user/foo/posts&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/posts`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should 401 if not logged in&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/admin`);
+			assert.equal(response.statusCode, 401);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/bookmarks&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/bookmarks`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/upvoted&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/upvoted`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/downvoted&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/downvoted`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/best&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/best`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/controversial&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/controversial`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/watched&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/watched`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/ignored&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/ignored`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/topics&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/topics`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/blocks&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/blocks`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/consent&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/consent`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/sessions&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/sessions`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/categories&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/categories`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/tags&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/tags`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load /user/foo/uploads&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/uploads`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		describe(&#039;user data export routes&#039;, () =&gt; {
+			before(async () =&gt; {
+				const types = [&#039;profile&#039;, &#039;uploads&#039;, &#039;posts&#039;];
+				await Promise.all(types.map(async (type) =&gt; {
+					await api.users.generateExport({ uid: fooUid, ip: &#039;127.0.0.1&#039; }, { uid: fooUid, type });
+				}));
+				await sleep(10000);
+			});
+
+			it(&#039;should export users posts&#039;, async () =&gt; {
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/v3/users/${fooUid}/exports/posts`, { jar: jar });
+				assert.equal(response.statusCode, 200);
+				assert(body);
+			});
+
+			it(&#039;should export users uploads&#039;, async () =&gt; {
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/v3/users/${fooUid}/exports/uploads`, { jar: jar });
+				assert.equal(response.statusCode, 200);
+				assert(body);
+			});
+
+			it(&#039;should export users profile&#039;, async () =&gt; {
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/v3/users/${fooUid}/exports/profile`, { jar: jar });
+				assert.equal(response.statusCode, 200);
+				assert(body);
+			});
+		});
+
+		it(&#039;should load notifications page&#039;, async () =&gt; {
+			const notifications = require(&#039;../src/notifications&#039;);
+			const notifData = {
+				bodyShort: &#039;[[notifications:user-posted-to, test1, test2]]&#039;,
+				bodyLong: &#039;some post content&#039;,
+				pid: 1,
+				path: `/post/${1}`,
+				nid: `new_post:tid:${1}:pid:${1}:uid:${fooUid}`,
+				tid: 1,
+				from: fooUid,
+				mergeId: `notifications:user-posted-to|${1}`,
+				topicTitle: &#039;topic title&#039;,
+			};
+			const notification = await notifications.create(notifData);
+			await notifications.push(notification, fooUid);
+			await sleep(2500);
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/notifications`, {
+				jar,
+			});
+			assert.equal(response.statusCode, 200);
+			assert(body);
+			const notif = body.notifications[0];
+			assert.equal(notif.bodyShort, &#039;&lt;strong&gt;test1&lt;/strong&gt; has posted a reply to: &lt;strong&gt;test2&lt;/strong&gt;&#039;);
+			assert.equal(notif.bodyLong, notifData.bodyLong);
+			assert.equal(notif.pid, notifData.pid);
+			assert.equal(notif.path, nconf.get(&#039;relative_path&#039;) + notifData.path);
+			assert.equal(notif.nid, notifData.nid);
+		});
+
+		it(&#039;should 404 if user does not exist&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/email/doesnotexist`);
+			assert.equal(response.statusCode, 404);
+			assert(body);
+		});
+
+		it(&#039;should load user by uid&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/uid/${fooUid}`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should load user by username&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/username/foo`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should NOT load user by email (by default)&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/email/foo@test.com`);
+
+			assert.strictEqual(response.statusCode, 404);
+		});
+
+		it(&#039;should load user by email if user has elected to show their email&#039;, async () =&gt; {
+			await user.setSetting(fooUid, &#039;showemail&#039;, 1);
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/email/foo@test.com`);
+			assert.strictEqual(response.statusCode, 200);
+			assert(body);
+			await user.setSetting(fooUid, &#039;showemail&#039;, 0);
+		});
+
+		it(&#039;should return 401 if user does not have view:users privilege&#039;, async () =&gt; {
+			await privileges.global.rescind([&#039;groups:view:users&#039;], &#039;guests&#039;);
+
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo`);
+			assert.equal(response.statusCode, 401);
+			assert.deepEqual(body, {
+				response: {},
+				status: {
+					code: &#039;not-authorised&#039;,
+					message: &#039;A valid login session was not found. Please log in and try again.&#039;,
+				},
+			});
+			await privileges.global.give([&#039;groups:view:users&#039;], &#039;guests&#039;);
+		});
+
+		it(&#039;should return false if user can not edit user&#039;, async () =&gt; {
+			await user.create({ username: &#039;regularJoe&#039;, password: &#039;barbar&#039; });
+			const { jar } = await helpers.loginUser(&#039;regularJoe&#039;, &#039;barbar&#039;);
+			let { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/info`, { jar });
+			assert.equal(response.statusCode, 403);
+			({ response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/edit`, { jar }));
+			assert.equal(response.statusCode, 403);
+		});
+
+		it(&#039;should load correct user&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/FOO`, { jar: jar });
+			assert.equal(response.statusCode, 200);
+		});
+
+		it(&#039;should redirect&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/user/FOO`, { jar: jar });
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should 404 if user does not exist&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/doesnotexist`, { jar });
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should not increase profile view if you visit your own profile&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo`, { jar });
+			assert.equal(response.statusCode, 200);
+			await sleep(500);
+			const viewcount = await user.getUserField(fooUid, &#039;profileviews&#039;);
+			assert(viewcount === 0);
+		});
+
+		it(&#039;should not increase profile view if a guest visits a profile&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo`, {});
+			assert.equal(response.statusCode, 200);
+			await sleep(500);
+			const viewcount = await user.getUserField(fooUid, &#039;profileviews&#039;);
+			assert(viewcount === 0);
+		});
+
+		it(&#039;should increase profile view&#039;, async () =&gt; {
+			const { jar } = await helpers.loginUser(&#039;regularJoe&#039;, &#039;barbar&#039;);
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo`, {
+				jar,
+			});
+			assert.equal(response.statusCode, 200);
+			await sleep(500);
+			const viewcount = await user.getUserField(fooUid, &#039;profileviews&#039;);
+			assert(viewcount &gt; 0);
+		});
+
+		it(&#039;should parse about me&#039;, async () =&gt; {
+			await user.setUserFields(fooUid, { picture: &#039;/path/to/picture&#039;, aboutme: &#039;hi i am a bot&#039; });
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo`);
+			assert.equal(response.statusCode, 200);
+			assert.equal(body.aboutme, &#039;hi i am a bot&#039;);
+			assert.equal(body.picture, &#039;/path/to/picture&#039;);
+		});
+
+		it(&#039;should not return reputation if reputation is disabled&#039;, async () =&gt; {
+			meta.config[&#039;reputation:disabled&#039;] = 1;
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo`);
+			meta.config[&#039;reputation:disabled&#039;] = 0;
+			assert.equal(response.statusCode, 200);
+			assert(!body.hasOwnProperty(&#039;reputation&#039;));
+		});
+
+		it(&#039;should only return posts that are not deleted&#039;, async () =&gt; {
+			const { topicData } = await topics.post({ uid: fooUid, title: &#039;visible&#039;, content: &#039;some content&#039;, cid: cid });
+			const { pid: pidToDelete } = await topics.reply({ uid: fooUid, content: &#039;1st reply&#039;, tid: topicData.tid });
+			await topics.reply({ uid: fooUid, content: &#039;2nd reply&#039;, tid: topicData.tid });
+			await posts.delete(pidToDelete, fooUid);
+
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo`);
+			assert.equal(response.statusCode, 200);
+			const contents = body.posts.map(p =&gt; p.content);
+			assert(!contents.includes(&#039;1st reply&#039;));
+		});
+
+		it(&#039;should return selected group title&#039;, async () =&gt; {
+			await groups.create({
+				name: &#039;selectedGroup&#039;,
+			});
+			const uid = await user.create({ username: &#039;groupie&#039; });
+			await groups.join(&#039;selectedGroup&#039;, uid);
+
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/groupie`);
+			assert.equal(response.statusCode, 200);
+			assert(Array.isArray(body.selectedGroup));
+			assert.equal(body.selectedGroup[0].name, &#039;selectedGroup&#039;);
+		});
+
+		it(&#039;should 404 if user does not exist&#039;, async () =&gt; {
+			await groups.join(&#039;administrators&#039;, fooUid);
+
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/doesnotexist/edit`, { jar });
+			assert.equal(response.statusCode, 404);
+			await groups.leave(&#039;administrators&#039;, fooUid);
+		});
+
+		it(&#039;should render edit/password&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/edit/password`, { jar });
+			assert.equal(response.statusCode, 200);
+		});
+
+		it(&#039;should render edit/email&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/edit/email`, { jar });
+
+			assert.strictEqual(response.statusCode, 200);
+			assert.strictEqual(body, &#039;/register/complete&#039;);
+
+			await request.post(`${nconf.get(&#039;url&#039;)}/register/abort`, {
+				jar,
+				headers: {
+					&#039;x-csrf-token&#039;: csrf_token,
+				},
+			});
+		});
+
+		it(&#039;should render edit/username&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/edit/username`, { jar });
+			assert.equal(response.statusCode, 200);
+		});
+	});
+
+	describe(&#039;account follow page&#039;, () =&gt; {
+		const socketUser = require(&#039;../src/socket.io/user&#039;);
+		const apiUser = require(&#039;../src/api/users&#039;);
+		let uid;
+		before(async () =&gt; {
+			uid = await user.create({ username: &#039;follower&#039; });
+			await apiUser.follow({ uid: uid }, { uid: fooUid });
+			const isFollowing = await socketUser.isFollowing({ uid: uid }, { uid: fooUid });
+			assert(isFollowing);
+		});
+
+		it(&#039;should get followers page&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/followers`);
+			assert.equal(response.statusCode, 200);
+			assert.equal(body.users[0].username, &#039;follower&#039;);
+		});
+
+		it(&#039;should get following page&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/follower/following`);
+			assert.equal(response.statusCode, 200);
+			assert.equal(body.users[0].username, &#039;foo&#039;);
+		});
+
+		it(&#039;should return empty after unfollow&#039;, async () =&gt; {
+			await apiUser.unfollow({ uid: uid }, { uid: fooUid });
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/foo/followers`);
+			assert.equal(response.statusCode, 200);
+			assert.equal(body.users.length, 0);
+		});
+	});
+
+	describe(&#039;post redirect&#039;, () =&gt; {
+		let jar;
+		before(async () =&gt; {
+			({ jar } = await helpers.loginUser(&#039;foo&#039;, &#039;barbar&#039;));
+		});
+
+		it(&#039;should 404 for invalid pid&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/post/fail`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should 403 if user does not have read privilege&#039;, async () =&gt; {
+			await privileges.categories.rescind([&#039;groups:topics:read&#039;], category.cid, &#039;registered-users&#039;);
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/post/${pid}`, { jar });
+			assert.equal(response.statusCode, 403);
+			await privileges.categories.give([&#039;groups:topics:read&#039;], category.cid, &#039;registered-users&#039;);
+		});
+
+		it(&#039;should return correct post path&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/post/${pid}`);
+			assert.equal(response.statusCode, 200);
+			assert.equal(response.headers[&#039;x-redirect&#039;], &#039;/topic/1/test-topic-title&#039;);
+			assert.equal(body, &#039;/topic/1/test-topic-title&#039;);
+		});
+	});
+
+	describe(&#039;cookie consent&#039;, () =&gt; {
+		it(&#039;should return relevant data in configs API route&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/config`);
+			assert.equal(response.statusCode, 200);
+			assert.ok(body.cookies);
+			assert.equal(translator.escape(&#039;[[global:cookies.message]]&#039;), body.cookies.message);
+			assert.equal(translator.escape(&#039;[[global:cookies.accept]]&#039;), body.cookies.dismiss);
+			assert.equal(translator.escape(&#039;[[global:cookies.learn-more]]&#039;), body.cookies.link);
+		});
+
+		it(&#039;response should be parseable when entries have apostrophes&#039;, async () =&gt; {
+			await meta.configs.set(&#039;cookieConsentMessage&#039;, &#039;Julian\&#039;s Message&#039;);
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/config`);
+			assert.equal(response.statusCode, 200);
+			assert.equal(&#039;Julian&amp;#x27;s Message&#039;, body.cookies.message);
+		});
+	});
+
+	describe(&#039;handle errors&#039;, () =&gt; {
+		const plugins = require(&#039;../src/plugins&#039;);
+		after((done) =&gt; {
+			plugins.loadedHooks[&#039;filter:router.page&#039;] = undefined;
+			done();
+		});
+
+		it(&#039;should handle topic malformed uri&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/topic/1/a%AFc`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should handle category malformed uri&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/category/1/a%AFc`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should handle malformed uri &#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/user/a%AFc`);
+			assert(body);
+			assert.equal(response.statusCode, 400);
+		});
+
+		it(&#039;should handle malformed uri in api&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/user/a%AFc`);
+			assert.equal(response.statusCode, 400);
+			assert.equal(body.error, &#039;[[global:400.title]]&#039;);
+		});
+
+		it(&#039;should handle CSRF error&#039;, async () =&gt; {
+			plugins.loadedHooks[&#039;filter:router.page&#039;] = plugins.loadedHooks[&#039;filter:router.page&#039;] || [];
+			plugins.loadedHooks[&#039;filter:router.page&#039;].push({
+				method: function (req, res, next) {
+					const err = new Error(&#039;csrf-error&#039;);
+					err.code = &#039;EBADCSRFTOKEN&#039;;
+					next(err);
+				},
+			});
+
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/users`);
+			plugins.loadedHooks[&#039;filter:router.page&#039;] = [];
+			assert.equal(response.statusCode, 403);
+		});
+
+		it(&#039;should handle black-list error&#039;, async () =&gt; {
+			plugins.loadedHooks[&#039;filter:router.page&#039;] = plugins.loadedHooks[&#039;filter:router.page&#039;] || [];
+			plugins.loadedHooks[&#039;filter:router.page&#039;].push({
+				method: function (req, res, next) {
+					const err = new Error(&#039;blacklist error message&#039;);
+					err.code = &#039;blacklisted-ip&#039;;
+					next(err);
+				},
+			});
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/users`);
+			plugins.loadedHooks[&#039;filter:router.page&#039;] = [];
+			assert.equal(response.statusCode, 403);
+			assert.equal(body, &#039;blacklist error message&#039;);
+		});
+
+		it(&#039;should handle page redirect through error&#039;, async () =&gt; {
+			plugins.loadedHooks[&#039;filter:router.page&#039;] = plugins.loadedHooks[&#039;filter:router.page&#039;] || [];
+			plugins.loadedHooks[&#039;filter:router.page&#039;].push({
+				method: function (req, res, next) {
+					const err = new Error(&#039;redirect&#039;);
+					err.status = 302;
+					err.path = &#039;/popular&#039;;
+					plugins.loadedHooks[&#039;filter:router.page&#039;] = [];
+					next(err);
+				},
+			});
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/users`);
+			assert.equal(response.statusCode, 200);
+			assert(body);
+		});
+
+		it(&#039;should handle api page redirect through error&#039;, async () =&gt; {
+			plugins.loadedHooks[&#039;filter:router.page&#039;] = plugins.loadedHooks[&#039;filter:router.page&#039;] || [];
+			plugins.loadedHooks[&#039;filter:router.page&#039;].push({
+				method: function (req, res, next) {
+					const err = new Error(&#039;redirect&#039;);
+					err.status = 308;
+					err.path = &#039;/api/popular&#039;;
+					plugins.loadedHooks[&#039;filter:router.page&#039;] = [];
+					next(err);
+				},
+			});
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/users`);
+			assert.equal(response.statusCode, 200);
+			assert.equal(response.headers[&#039;x-redirect&#039;], &#039;/api/popular&#039;);
+			assert(body, &#039;/api/popular&#039;);
+		});
+
+		it(&#039;should handle error page&#039;, async () =&gt; {
+			plugins.loadedHooks[&#039;filter:router.page&#039;] = plugins.loadedHooks[&#039;filter:router.page&#039;] || [];
+			plugins.loadedHooks[&#039;filter:router.page&#039;].push({
+				method: function (req, res, next) {
+					const err = new Error(&#039;regular error&#039;);
+					next(err);
+				},
+			});
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/users`);
+			plugins.loadedHooks[&#039;filter:router.page&#039;] = [];
+			assert.equal(response.statusCode, 500);
+			assert(body);
+		});
+	});
+
+	describe(&#039;category&#039;, () =&gt; {
+		let jar;
+		before(async () =&gt; {
+			({ jar } = await helpers.loginUser(&#039;foo&#039;, &#039;barbar&#039;));
+		});
+
+		it(&#039;should return 404 if cid is not a number&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/fail`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should return 404 if topic index is not a number&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}/invalidtopicindex`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should 404 if category does not exist&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/123123`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should 404 if category is disabled&#039;, async () =&gt; {
+			const category = await categories.create({ name: &#039;disabled&#039; });
+			await categories.setCategoryField(category.cid, &#039;disabled&#039;, 1);
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}`);
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should return 401 if not allowed to read&#039;, async () =&gt; {
+			const category = await categories.create({ name: &#039;hidden&#039; });
+			await privileges.categories.rescind([&#039;groups:read&#039;], category.cid, &#039;guests&#039;);
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}`);
+			assert.equal(response.statusCode, 401);
+		});
+
+		it(&#039;should redirect if topic index is negative&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}/-10`);
+			assert.equal(response.statusCode, 200);
+			assert.ok(response.headers[&#039;x-redirect&#039;]);
+		});
+
+		it(&#039;should 404 if page is not found&#039;, async () =&gt; {
+			await user.setSetting(fooUid, &#039;usePagination&#039;, 1);
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}?page=100`, { jar });
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should load page 1 if req.query.page is not sent&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert.equal(body.pagination.currentPage, 1);
+		});
+
+		it(&#039;should sort topics by most posts&#039;, async () =&gt; {
+			const category = await categories.create({ name: &#039;most-posts-category&#039; });
+			await topics.post({ uid: fooUid, cid: category.cid, title: &#039;topic 1&#039;, content: &#039;topic 1 OP&#039; });
+			const t2 = await topics.post({ uid: fooUid, cid: category.cid, title: &#039;topic 2&#039;, content: &#039;topic 2 OP&#039; });
+			await topics.reply({ uid: fooUid, content: &#039;topic 2 reply&#039;, tid: t2.topicData.tid });
+
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}?sort=most_posts`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert.equal(body.topics[0].title, &#039;topic 2&#039;);
+			assert.equal(body.topics[0].postcount, 2);
+			assert.equal(body.topics[1].postcount, 1);
+		});
+
+		it(&#039;should load a specific users topics from a category with tags&#039;, async () =&gt; {
+			const category = await categories.create({ name: &#039;filtered-category&#039; });
+			await topics.post({ uid: fooUid, cid: category.cid, title: &#039;topic 1&#039;, content: &#039;topic 1 OP&#039;, tags: [&#039;java&#039;, &#039;cpp&#039;] });
+			await topics.post({ uid: fooUid, cid: category.cid, title: &#039;topic 2&#039;, content: &#039;topic 2 OP&#039;, tags: [&#039;node&#039;, &#039;javascript&#039;] });
+			await topics.post({ uid: fooUid, cid: category.cid, title: &#039;topic 3&#039;, content: &#039;topic 3 OP&#039;, tags: [&#039;java&#039;, &#039;cpp&#039;, &#039;best&#039;] });
+
+			let { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}?tag=node&amp;author=foo`, { jar });
+			assert.equal(body.topics[0].title, &#039;topic 2&#039;);
+
+			({ body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}?tag[]=java&amp;tag[]=cpp`, { jar }));
+			assert.equal(body.topics[0].title, &#039;topic 3&#039;);
+			assert.equal(body.topics[1].title, &#039;topic 1&#039;);
+		});
+
+		it(&#039;should redirect if category is a link&#039;, async () =&gt; {
+			const category = await categories.create({ name: &#039;redirect&#039;, link: &#039;https://nodebb.org&#039; });
+			const { cid } = category;
+
+			let result = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}`, { jar });
+			assert.equal(result.response.headers[&#039;x-redirect&#039;], &#039;https://nodebb.org&#039;);
+			assert.equal(result.body, &#039;https://nodebb.org&#039;);
+			await categories.setCategoryField(cid, &#039;link&#039;, &#039;/recent&#039;);
+
+			result = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}`, { jar });
+			assert.equal(result.response.headers[&#039;x-redirect&#039;], &#039;/recent&#039;);
+			assert.equal(result.body, &#039;/recent&#039;);
+		});
+
+		it(&#039;should get recent topic replies from children categories&#039;, async () =&gt; {
+			const parentCategory = await categories.create({ name: &#039;parent category&#039;, backgroundImage: &#039;path/to/some/image&#039; });
+			const childCategory1 = await categories.create({ name: &#039;child category 1&#039;, parentCid: category.cid });
+			const childCategory2 = await categories.create({ name: &#039;child category 2&#039;, parentCid: parentCategory.cid });
+			await topics.post({ uid: fooUid, cid: childCategory2.cid, title: &#039;topic 1&#039;, content: &#039;topic 1 OP&#039; });
+
+			const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${parentCategory.slug}`, { jar });
+			assert.equal(body.children[0].posts[0].content, &#039;topic 1 OP&#039;);
+		});
+
+		it(&#039;should create 2 pages of topics&#039;, async () =&gt; {
+			const category = await categories.create({ name: &#039;category with 2 pages&#039; });
+			for (let i = 0; i &lt; 30; i++) {
+				// eslint-disable-next-line no-await-in-loop
+				await topics.post({ uid: fooUid, cid: category.cid, title: `topic title ${i}`, content: &#039;does not really matter&#039; });
+			}
+			const userSettings = await user.getSettings(fooUid);
+
+			const { body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/category/${category.slug}`, { jar });
+			assert.equal(body.topics.length, userSettings.topicsPerPage);
+			assert.equal(body.pagination.pageCount, 2);
+		});
+
+		it(&#039;should load categories&#039;, async () =&gt; {
+			const helpers = require(&#039;../src/controllers/helpers&#039;);
+			const data = await helpers.getCategories(&#039;cid:0:children&#039;, 1, &#039;topics:read&#039;, 0);
+			assert(data.categories.length &gt; 0);
+			assert.strictEqual(data.selectedCategory, null);
+			assert.deepStrictEqual(data.selectedCids, []);
+		});
+
+		it(&#039;should load categories by states&#039;, async () =&gt; {
+			const helpers = require(&#039;../src/controllers/helpers&#039;);
+			const data = await helpers.getCategoriesByStates(1, 1, Object.values(categories.watchStates), &#039;topics:read&#039;);
+			assert.deepStrictEqual(data.selectedCategory.cid, 1);
+			assert.deepStrictEqual(data.selectedCids, [1]);
+		});
+
+		it(&#039;should load categories by states&#039;, async () =&gt; {
+			const helpers = require(&#039;../src/controllers/helpers&#039;);
+			const data = await helpers.getCategoriesByStates(1, 0, [categories.watchStates.ignoring], &#039;topics:read&#039;);
+			assert(data.categories.length === 0);
+			assert.deepStrictEqual(data.selectedCategory, null);
+			assert.deepStrictEqual(data.selectedCids, []);
+		});
+	});
+
+	describe(&#039;unread&#039;, () =&gt; {
+		let jar;
+		before(async () =&gt; {
+			({ jar } = await helpers.loginUser(&#039;foo&#039;, &#039;barbar&#039;));
+		});
+
+		it(&#039;should load unread page&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/unread`, { jar });
+			assert.equal(response.statusCode, 200);
+		});
+
+		it(&#039;should 404 if filter is invalid&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/unread/doesnotexist`, { jar });
+			assert.equal(response.statusCode, 404);
+		});
+
+		it(&#039;should return total unread count&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/unread/total?filter=new`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert.equal(body, 0);
+		});
+
+		it(&#039;should redirect if page is out of bounds&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/unread?page=-1`, { jar });
+			assert.equal(response.statusCode, 200);
+			assert.equal(response.headers[&#039;x-redirect&#039;], &#039;/unread?page=1&#039;);
+			assert.equal(body, &#039;/unread?page=1&#039;);
+		});
+	});
+
+	describe(&#039;admin middlewares&#039;, () =&gt; {
+		it(&#039;should redirect to login&#039;, async () =&gt; {
+			const { response } = await request.get(`${nconf.get(&#039;url&#039;)}/api/admin/advanced/database`);
+			assert.equal(response.statusCode, 401);
+		});
+
+		it(&#039;should redirect to login&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/admin/advanced/database`);
+			assert.equal(response.statusCode, 200);
+			assert(body.includes(&#039;Login to your account&#039;));
+		});
+	});
+
+	describe(&#039;composer&#039;, () =&gt; {
+		let csrf_token;
+		let jar;
+
+		before(async () =&gt; {
+			const login = await helpers.loginUser(&#039;foo&#039;, &#039;barbar&#039;);
+			jar = login.jar;
+			csrf_token = login.csrf_token;
+		});
+
+		it(&#039;should load the composer route&#039;, async () =&gt; {
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/compose?cid=1`);
+			assert.equal(response.statusCode, 200);
+			assert(body.title);
+			assert(body.template);
+			assert.equal(body.url, `${nconf.get(&#039;relative_path&#039;)}/compose`);
+		});
+
+		it(&#039;should load the composer route if disabled by plugin&#039;, async () =&gt; {
+			function hookMethod(hookData, callback) {
+				hookData.templateData.disabled = true;
+				callback(null, hookData);
+			}
+
+			plugins.hooks.register(&#039;myTestPlugin&#039;, {
+				hook: &#039;filter:composer.build&#039;,
+				method: hookMethod,
+			});
+
+			const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/api/compose?cid=1`);
+			assert.equal(response.statusCode, 200);
+			assert(body.title);
+			assert.strictEqual(body.template.name, &#039;&#039;);
+			assert.strictEqual(body.url, `${nconf.get(&#039;relative_path&#039;)}/compose`);
+
+			plugins.hooks.unregister(&#039;myTestPlugin&#039;, &#039;filter:composer.build&#039;, hookMethod);
+		});
+
+		it(&#039;should error with invalid data&#039;, async () =&gt; {
+			let result = await request.post(`${nconf.get(&#039;url&#039;)}/compose`, {
+				data: {
+					content: &#039;a new reply&#039;,
+				},
+				jar: jar,
+				headers: {
+					&#039;x-csrf-token&#039;: csrf_token,
+				},
+			});
+
+			assert.equal(result.response.statusCode, 400);
+			result = await request.post(`${nconf.get(&#039;url&#039;)}/compose`, {
+				body: {
+					tid: tid,
+				},
+				jar: jar,
+				headers: {
+					&#039;x-csrf-token&#039;: csrf_token,
+				},
+			});
+			assert.equal(result.response.statusCode, 400);
+		});
+
+		it(&#039;should create a new topic and reply by composer route&#039;, async () =&gt; {
+			let result = await request.post(`${nconf.get(&#039;url&#039;)}/compose`, {
+				body: {
+					cid: cid,
+					title: &#039;no js is good&#039;,
+					content: &#039;a topic with noscript&#039;,
+				},
+				jar: jar,
+				maxRedirect: 0,
+				redirect: &#039;manual&#039;,
+				headers: {
+					&#039;x-csrf-token&#039;: csrf_token,
+				},
+			});
+
+			assert.equal(result.response.statusCode, 302);
+			result = await request.post(`${nconf.get(&#039;url&#039;)}/compose`, {
+				body: {
+					tid: tid,
+					content: &#039;a new reply&#039;,
+				},
+				jar: jar,
+				maxRedirect: 0,
+				redirect: &#039;manual&#039;,
+				headers: {
+					&#039;x-csrf-token&#039;: csrf_token,
+				},
+			});
+			assert.equal(result.response.statusCode, 302);
+		});
+
+		it(&#039;should create a new topic and reply by composer route as a guest&#039;, async () =&gt; {
+			const jar = request.jar();
+			const csrf_token = await helpers.getCsrfToken(jar);
+
+			await privileges.categories.give([&#039;groups:topics:create&#039;, &#039;groups:topics:reply&#039;], cid, &#039;guests&#039;);
+
+			const result = await helpers.request(&#039;post&#039;, `/compose`, {
+				body: {
+					cid: cid,
+					title: &#039;no js is good&#039;,
+					content: &#039;a topic with noscript&#039;,
+					handle: &#039;guest1&#039;,
+				},
+				jar,
+				maxRedirect: 0,
+				redirect: &#039;manual&#039;,
+				headers: {
+					&#039;x-csrf-token&#039;: csrf_token,
+				},
+			});
+			assert.strictEqual(result.response.statusCode, 302);
+
+			const replyResult = await helpers.request(&#039;post&#039;, `/compose`, {
+				body: {
+					tid: tid,
+					content: &#039;a new reply&#039;,
+					handle: &#039;guest2&#039;,
+				},
+				jar,
+				maxRedirect: 0,
+				redirect: &#039;manual&#039;,
+				headers: {
+					&#039;x-csrf-token&#039;: csrf_token,
+				},
+			});
+			assert.equal(replyResult.response.statusCode, 302);
+			await privileges.categories.rescind([&#039;groups:topics:post&#039;, &#039;groups:topics:reply&#039;], cid, &#039;guests&#039;);
+		});
+	});
+
+	describe(&#039;test routes&#039;, () =&gt; {
+		if (process.env.NODE_ENV === &#039;development&#039;) {
+			it(&#039;should load debug route&#039;, async () =&gt; {
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/debug/test`);
+				assert.equal(response.statusCode, 404);
+				assert(body);
+			});
+
+			it(&#039;should load redoc read route&#039;, async () =&gt; {
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/debug/spec/read`);
+				assert.equal(response.statusCode, 200);
+				assert(body);
+			});
+
+			it(&#039;should load redoc write route&#039;, async () =&gt; {
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/debug/spec/write`);
+				assert.equal(response.statusCode, 200);
+				assert(body);
+			});
+
+			it(&#039;should load 404 for invalid type&#039;, async () =&gt; {
+				const { response, body } = await request.get(`${nconf.get(&#039;url&#039;)}/debug/spec/doesnotexist`);
+				assert.equal(response.statusCode, 404);
+				assert(body);
+			});
+		}
+	});
+
+	after((done) =&gt; {
+		const analytics = require(&#039;../src/analytics&#039;);
+		analytics.writeData(done);
+	});
+});</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>
