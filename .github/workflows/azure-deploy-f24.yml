@@ -43,6 +43,15 @@ jobs:
             "redis:host": "${{ secrets.REDIS_HOST }}",
             "redis:port": "6379",
             "redis:password": "${{ secrets.REDIS_PASSWORD }}" }'
+      
+      - name: Clone frontend repo as a subdirectory
+        run: |
+          git clone https://github.com/CMU-313/nodebb-frontend-f24-sweethearts.git
+      
+      - name: Install frontend dependencies
+        run: |
+          npm install ./nodebb-frontend-f24-sweethearts
+          ./nodebb builds
           
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
