@@ -51,7 +51,7 @@ jobs:
       - name: Install frontend dependencies
         run: |
           npm install ./nodebb-frontend-f24-sweethearts
-          ./nodebb builds
+          ./nodebb build
           
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
