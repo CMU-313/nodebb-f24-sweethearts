@@ -290,7 +290,7 @@ Flags.validate = async function (payload) {
 		throw new Error('[[error:invalid-data]]');
 	} else if (target.deleted) {
 		throw new Error('[[error:post-deleted]]');
-	} else if (!reporter || !reporter.userslug) {
+	} else if (!reporter?.userslug) {
 		throw new Error('[[error:no-user]]');
 	} else if (reporter.banned) {
 		throw new Error('[[error:user-banned]]');
