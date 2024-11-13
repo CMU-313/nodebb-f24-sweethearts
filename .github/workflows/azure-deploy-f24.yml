@@ -47,6 +47,7 @@ jobs:
       - name: Clone frontend repo as a subdirectory
         run: |
           git clone https://github.com/CMU-313/nodebb-frontend-f24-sweethearts.git
+          npm install https://github.com/CMU-313/nodebb-frontend-f24-sweethearts.git
       
       - name: Install frontend dependencies
         run: |
