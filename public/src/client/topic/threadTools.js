@@ -146,6 +146,13 @@ define('forum/topic/threadTools', [
 			changeWatching('ignore');
 		});
 
+		topicContainer.on('click', '[component="topic/favorite"]', function () {
+			changeFavorite('favorite');
+		});
+		topicContainer.on('click', '[component="topic/unfavorite"]', function () {
+			changeFavorite('favorite', 0);
+		});
+
 		function changeWatching(type, state = 1) {
 			const method = state ? 'put' : 'del';
 			api[method](`/topics/${tid}/${type}`, {}, () => {
@@ -181,6 +188,23 @@ define('forum/topic/threadTools', [
 				});
 			});
 
+			return false;
+		}
+
+		function changeFavorite(type, state = 1) {
+			const method = state ? 'put' : 'del';
+			api[method](`/topics/${tid}/${type}`, {}, () => {
+				setFavoriteState(state ? 'favorite' : 'unfavorite');
+				hooks.fire('action:topics.changeFavorite', { tid: tid, type: type });
+			}, () => {
+				alerts.alert({
+					type: 'danger',
+					alert_id: 'topic_favorite',
+					title: '[[global:please-log-in]]',
+					message: '[[topic:login-to-favorite]]',
+					timeout: 5000,
+				});
+			});
 			return false;
 		}
 	};
@@ -403,6 +427,20 @@ define('forum/topic/threadTools', [
 		components.get('topic/ignoring/check').toggleClass('fa-check', state === 'ignore');
 	}
 
+	function setFavoriteState(state) {
+		const titles = {
+			favorite: '[[topic:favorited]]',
+			unfavorite: '[[topic:not-favorited]]',
+		};
 
+		translator.translate(titles[state], function (translatedTitle) {
+			const tooltip = bootstrap.Tooltip.getInstance('[component="topic/favorite"]');
+			if (tooltip) {
+				tooltip.setContent({ '.tooltip-inner': translatedTitle });
+			}
+		});
+		components.get('topic/favorite').toggleClass('hidden', state !== 'unfavorite');
+		components.get('topic/unfavorite').toggleClass('hidden', state !== 'favorite');
+	}
 	return ThreadTools;
 });

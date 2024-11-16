@@ -150,6 +150,8 @@ paths:
     $ref: 'write/topics/tid/follow.yaml'
   /topics/{tid}/ignore:
     $ref: 'write/topics/tid/ignore.yaml'
+  /topics/{tid}/favorite:
+    $ref: 'write/topics/tid/favorite.yaml'
   /topics/{tid}/tags:
     $ref: 'write/topics/tid/tags.yaml'
   /topics/{tid}/thumbs:

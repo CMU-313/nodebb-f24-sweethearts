@@ -25,6 +25,7 @@ require('./user')(Topics);
 require('./fork')(Topics);
 require('./posts')(Topics);
 require('./follow')(Topics);
+require('./favorite')(Topics);
 require('./tags')(Topics);
 require('./teaser')(Topics);
 Topics.scheduled = require('./scheduled');

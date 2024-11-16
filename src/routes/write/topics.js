@@ -32,6 +32,9 @@ module.exports = function () {
 	setupApiRoute(router, 'put', '/:tid/ignore', [...middlewares, middleware.assert.topic], controllers.write.topics.ignore);
 	setupApiRoute(router, 'delete', '/:tid/ignore', [...middlewares, middleware.assert.topic], controllers.write.topics.unfollow); // intentional, unignore == unfollow
 
+	setupApiRoute(router, 'put', '/:tid/favorite', [...middlewares, middleware.assert.topic], controllers.write.topics.favorite);
+	setupApiRoute(router, 'delete', '/:tid/favorite', [...middlewares, middleware.assert.topic], controllers.write.topics.unfavorite);
+
 	setupApiRoute(router, 'put', '/:tid/tags', [...middlewares, middleware.checkRequired.bind(null, ['tags']), middleware.assert.topic], controllers.write.topics.updateTags);
 	setupApiRoute(router, 'patch', '/:tid/tags', [...middlewares, middleware.checkRequired.bind(null, ['tags']), middleware.assert.topic], controllers.write.topics.addTags);
 	setupApiRoute(router, 'delete', '/:tid/tags', [...middlewares, middleware.assert.topic], controllers.write.topics.deleteTags);
